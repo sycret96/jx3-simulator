@@ -212,8 +212,9 @@ var JX3 = (function () {
     },
     guangmingxiang: {
       key: 'guangmingxiang', name: '光明相', short: '光', kind: '增益', cd: true,
+      gcdFree: true,   // 瞬发激活，不占公共调息（GCD）；开启 10s 窗口
       hits: [],
-      note: '开启 10s 窗口：下次耗灵招式必会心并立即返还满灵；触发时额外 20-44(+4174)，非侠士 ×3.65'
+      note: '瞬发不占 GCD；开启 10s 窗口：下次耗灵招式必会心并立即返还满灵；触发时额外 20-44(+4174)，非侠士 ×3.65'
     },
     quyeduanchou: {
       key: 'quyeduanchou', name: '驱夜断愁', short: '驱', kind: '月', cd: true,
@@ -338,7 +339,7 @@ var JX3 = (function () {
       arr.push({ start: from, end: end });
       db[key] = end;
     }
-    function gmBlocked(start) { return gmCharges > 0 || gmWindowUntil > start; }
+    function gmBlocked(start) { return gmWindowUntil > start; }   // 仅「主动光明相 10s 窗口」内阻断珥/芒生成；待消耗的存相层数（gmCharges）不阻断
     function checkMerge(start, ev) {
       if (riE > 0 && yueM > 0) {
         var n = Math.min(riE, yueM);

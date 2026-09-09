@@ -43,8 +43,12 @@ ok(r.events[0].riE === 1, '烈日斩命中非侠士 → 日珥 +1', r.events[0].
 ok(r.events[5].yueM === 0 && r.events[5].gmN === 1, '银月斩的月芒与日珥合成光明相 1 层', '珥' + r.events[5].riE + ' 芒' + r.events[5].yueM + ' 相' + r.events[5].gmN);
 ok(r.merges === 1, '合成次数 = 1', r.merges);
 r = JX3.simulate(A([LR, YZ, LR]), {});
-ok(r.events[2].riE === 0 && r.events[2].gmN === 1, '光明相期间无法再获得日珥（珥仍为 0）', '珥' + r.events[2].riE + ' 相' + r.events[2].gmN);
-ok(r.events[2].notes.join('').indexOf('光明相期间') >= 0, '给出「光明相期间」提示', r.events[2].notes.join(';'));
+ok(r.events[2].riE === 1 && r.events[2].gmN === 1, '待消耗存相（gmCharges>0）不阻断珥/芒：第3个烈日斩仍得日珥', '珥' + r.events[2].riE + ' 相' + r.events[2].gmN);
+// 主动光明相 10s 窗口内才阻断珥/芒生成（情报：光明相期间不再获得）
+r = JX3.simulate(A([LR, YZ, GM, LR]), {});
+ok(r.events[2].offGcd === true, '主动光明相不占 GCD（瞬发）', r.events[2].offGcd);
+ok(r.events[3].riE === 0 && r.events[3].notes.join('').indexOf('光明相期间') >= 0,
+   '主动光明相 10s 窗口内：烈日斩无法获得日珥', '珥' + r.events[3].riE + ' | ' + r.events[3].notes.join(';'));
 r = JX3.simulate(A([LR, YZ]), { ermang: false });
 ok(r.events[1].yueM === 0 && r.events[1].riE === 0, '关闭体系后不再产生珥/芒', '珥' + r.events[1].riE + ' 芒' + r.events[1].yueM);
 
