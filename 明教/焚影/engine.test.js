@@ -104,6 +104,16 @@ ok(r.events[1].gain.res === 'day', '驱夜资源方向=日灵', r.events[1].gain
 r = JX3.simulate(A([AC, QY]), {});
 ok(r.events[1].day === 40 && r.events[1].moon === 0, '无珥芒时回落补较低（日灵）', '日' + r.events[1].day + ' 月' + r.events[1].moon);
 
+console.log('\n=== 6.6 暗尘弥散不占 GCD ===');
+r = JX3.simulate(A([CH, AC, CH]), {});
+ok(r.events[1].offGcd === true, '暗尘弥散标记为不占 GCD', r.events[1].offGcd);
+ok(Math.abs(r.events[1].end - r.events[1].start) < 1e-9, '暗尘弥散时长为 0（不推进时间）', r.events[1].end - r.events[1].start);
+ok(Math.abs(r.events[2].start - r.events[1].end) < 1e-9, '暗尘后下一技能立即接续（同刻触发）', r.events[2].start + ' vs ' + r.events[1].end);
+ok(Math.abs(r.events[2].start - r.events[0].end) < 1e-9, '暗尘等同于瞬间插入（不额外占时）', r.events[2].start + ' vs ' + r.events[0].end);
+r = JX3.simulate(A([LR, AC, YZ]), {});
+ok(r.events[1].day === 40 && r.events[1].moon === 0 && r.events[1].riE === 1, '暗尘不改动资源（透传前后状态）', '日' + r.events[1].day + ' 月' + r.events[1].moon + ' 珥' + r.events[1].riE);
+ok(r.events[2].gmN === 1, '暗尘后银月斩仍正常结算珥芒→合成光明相', r.events[2].gmN);
+
 console.log('\n=== 7. 资源锁死 / 溢出 / 非法 ===');
 r = JX3.simulate(A([LR, CH, CH, CH, YZ, YY]), {});
 ok(r.events[4].moon === 0 && r.blocked.moon === 60, '日灵满时月魂被锁死', 'moon=' + r.events[4].moon + ' blocked=' + r.blocked.moon);

@@ -223,8 +223,9 @@ var JX3 = (function () {
     },
     anchenmisan: {
       key: 'anchenmisan', name: '暗尘弥散', short: '尘', kind: '辅助', charge: true,
+      gcdFree: true,   // 瞬发，不占公共调息（GCD）
       hits: [],
-      note: '进入「伪装」5s（战斗中）并重置驱夜断愁 CD；无伤害'
+      note: '进入「伪装」5s（战斗中）并重置驱夜断愁 CD；瞬发不占 GCD；无伤害'
     }
   };
 
@@ -352,7 +353,7 @@ var JX3 = (function () {
       var ev = {
         i: i, skill: sk.key, name: sk.name, short: sk.short, kind: sk.kind,
         seg: null, form: null, illegal: false, notes: [], forceCrit: false,
-        gm: null, damage: 0, wait: 0, start: 0, end: 0,
+        gm: null, damage: 0, wait: 0, start: 0, end: 0, offGcd: !!sk.gcdFree,
         day: 0, moon: 0, riE: 0, yueM: 0, gmN: 0, gain: null
       };
 
@@ -516,7 +517,8 @@ var JX3 = (function () {
         if (sk.cd) cdUntil[sk.key] = start + cdDef[sk.key];
       }
 
-      ev.start = start; ev.end = start + gcd;
+      var dur = sk.gcdFree ? 0 : gcd;
+      ev.start = start; ev.end = start + dur;
       ev.day = day; ev.moon = moon; ev.riE = riE; ev.yueM = yueM; ev.gmN = gmCharges;
       if (ev.wait > 1e-6) ev.notes.unshift('等待 ' + ev.wait.toFixed(2) + 's');
       if (ev.seg !== null) ev.segLabel = sk.hits[ev.seg].label;
@@ -814,18 +816,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
         g += '<rect x="' + wx + '" y="' + rowS.y + '" width="' + ww + '" height="' + rowS.h + '" fill="#F1EFE8" rx="3"/>';
         if (ww > 30) g += '<text x="' + (wx + ww / 2) + '" y="' + (rowS.y + rowS.h / 2) + '" font-size="10" fill="#8E8C85" text-anchor="middle" dominant-baseline="central">等</text>';
       }
-      var c = COLORS[ev.kind], bx = x(ev.start), bw = Math.max(4, (ev.end - ev.start) * pps - 1.5);
+      var c = COLORS[ev.kind], bx = x(ev.start), isOff = ev.offGcd;
+      var bw = isOff ? 14 : Math.max(4, (ev.end - ev.start) * pps - 1.5);
+      var bxOff = isOff ? bx - bw / 2 : bx;
       var sel = state.sel === ev.i;
-      var fill = ev.illegal ? '#F7C1C1' : c.bg, line = ev.illegal ? '#A32D2D' : c.line;
-      var txt = ev.illegal ? '#A32D2D' : c.tx;
+      var fill = ev.illegal ? '#F7C1C1' : (isOff ? '#F3EFE7' : c.bg), line = ev.illegal ? '#A32D2D' : (isOff ? '#B9A98C' : c.line);
+      var txt = ev.illegal ? '#A32D2D' : (isOff ? '#7A6A4A' : c.tx);
       var label = ev.short + (ev.seg !== null ? (ev.seg + 1) : '');
       if (ev.form) label = ev.skill === 'jingshi' ? (ev.form === 'day' ? '破·日' : '破·月') : (ev.form === 'day' ? '劫·日' : '劫·月');
       if (ev.gm) label += '★';
       g += '<g class="blk" data-i="' + ev.i + '" style="cursor:pointer">'
-        + '<rect x="' + bx + '" y="' + rowS.y + '" width="' + bw + '" height="' + rowS.h + '" rx="4" fill="' + fill + '" stroke="' + line + '" stroke-width="' + (sel ? 2.5 : 1) + '"/>';
-      if (bw > 20) g += '<text x="' + (bx + bw / 2) + '" y="' + (rowS.y + rowS.h / 2 + 1) + '" font-size="11" fill="' + txt + '" text-anchor="middle" dominant-baseline="central">' + label + '</text>';
+        + '<rect x="' + bxOff + '" y="' + (isOff ? rowS.y + 4 : rowS.y) + '" width="' + bw + '" height="' + (isOff ? rowS.h - 8 : rowS.h) + '" rx="' + (isOff ? 3 : 4) + '" fill="' + fill + '" stroke="' + line + '" stroke-width="' + (sel ? 2.5 : 1) + '" stroke-dasharray="' + (isOff ? '3 2' : '0') + '"/>';
+      if (bw > 14 || isOff) g += '<text x="' + (bxOff + bw / 2) + '" y="' + (rowS.y + rowS.h / 2 + 1) + '" font-size="11" fill="' + txt + '" text-anchor="middle" dominant-baseline="central">' + label + '</text>';
       g += '<title>' + ev.name + (ev.segLabel ? ' ' + ev.segLabel : '') + (ev.formLabel ? ' ' + ev.formLabel : '')
-        + '\n' + ev.start.toFixed(2) + 's → ' + ev.end.toFixed(2) + 's\n伤害 ' + fmt(ev.damage)
+        + '\n' + (isOff ? '瞬发 · 不占 GCD' : ev.start.toFixed(2) + 's → ' + ev.end.toFixed(2) + 's') + '\n伤害 ' + fmt(ev.damage)
         + '\n日灵 ' + ev.day + ' / 月魂 ' + ev.moon + ' / 珥 ' + ev.riE + ' / 芒 ' + ev.yueM + ' / 相 ' + ev.gmN
         + (ev.notes.length ? '\n' + ev.notes.join('；') : '') + '</title></g>';
       prevEnd = ev.end;
