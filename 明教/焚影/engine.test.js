@@ -40,10 +40,15 @@ ok(Math.abs(r.duration - 15) < 1e-9, '10 技能 × 1.5s GCD = 15s', r.duration);
 console.log('\n=== 2. 日珥 / 月芒 → 光明相 ===');
 r = JX3.simulate(A([LR, CH, CH, CH, JS, YZ]), {});
 ok(r.events[0].riE === 1, '烈日斩命中非侠士 → 日珥 +1', r.events[0].riE);
-ok(r.events[5].yueM === 0 && r.events[5].gmN === 1, '银月斩的月芒与日珥合成光明相 1 层', '珥' + r.events[5].riE + ' 芒' + r.events[5].yueM + ' 相' + r.events[5].gmN);
-ok(r.merges === 1, '合成次数 = 1', r.merges);
+ok(r.events[5].yueM === 0 && r.events[5].gmN === 2, '银月斩的月芒与日珥求和合并为光明相 2 层（无配对上限）', '珥' + r.events[5].riE + ' 芒' + r.events[5].yueM + ' 相' + r.events[5].gmN);
+ok(r.merges === 2, '合成层数 = 1 日珥 + 1 月芒 = 2', r.merges);
+// 珥/芒无层数上限：5 层月芒 + 打烈日斩获得日珥 → 合并成 6 层光明相
+r = JX3.simulate(A([YZ, YZ, YZ, YZ, YZ, LR]), {});
+ok(r.events[5].gmN === 6 && r.events[5].riE === 0 && r.events[5].yueM === 0,
+   '5层月芒 + 烈日斩日珥 → 合并 6 层光明相（无上限、求和）',
+   '珥' + r.events[5].riE + ' 芒' + r.events[5].yueM + ' 相' + r.events[5].gmN);
 r = JX3.simulate(A([LR, YZ, LR]), {});
-ok(r.events[2].riE === 1 && r.events[2].gmN === 1, '待消耗存相（gmCharges>0）不阻断珥/芒：第3个烈日斩仍得日珥', '珥' + r.events[2].riE + ' 相' + r.events[2].gmN);
+ok(r.events[2].riE === 1 && r.events[2].gmN === 2, '待消耗存相（gmCharges>0）不阻断珥/芒：第3个烈日斩仍得日珥', '珥' + r.events[2].riE + ' 相' + r.events[2].gmN);
 // 主动光明相 10s 窗口内才阻断珥/芒生成（情报：光明相期间不再获得）
 r = JX3.simulate(A([LR, YZ, GM, LR]), {});
 ok(r.events[2].offGcd === true, '主动光明相不占 GCD（瞬发）', r.events[2].offGcd);
@@ -67,7 +72,7 @@ const plain = JX3.simulate(A([LR, CH, CH, CH, JS]), {});
 r = JX3.simulate(A([LR, CH, CH, CH, GM, JS]), {});
 console.log('  ' + r.events[5].notes.join(';'));
 ok(r.gmTriggers.active === 1, '主动光明相触发 1 次', r.gmTriggers.active);
-ok(r.events[5].day === 100, '耗灵后立即返还满日（可连发净世）', r.events[5].day);
+ok(r.events[5].moon === 100, '光明相返还异色满灵：消耗满日→返还满月（交替日月）', '月' + r.events[5].moon);
 ok(r.events[5].forceCrit === true, '该次招式必会心');
 ok(r.events[5].damage > plain.events[4].damage * 2, '伤害远高于无光明相时',
   Math.round(plain.events[4].damage) + ' → ' + Math.round(r.events[5].damage));
@@ -75,7 +80,7 @@ ok(r.events[5].damage > plain.events[4].damage * 2, '伤害远高于无光明相
 console.log('\n=== 5. 光明相（自动，来自珥+芒）===');
 r = JX3.simulate(A([LR, CH, CH, CH, JS, YZ, YY, YY, YY, JS]), {});
 ok(r.gmTriggers.auto === 1, '自动光明相触发 1 次', r.gmTriggers.auto);
-ok(r.events[9].moon === 100, '自动光明相同样返还满灵', r.events[9].moon);
+ok(r.events[9].day === 100, '自动光明相同样返还异色满灵：消耗满月→返还满日', '日' + r.events[9].day);
 ok(r.events[9].forceCrit === false, '自动光明相默认不必会心（情报：生效时不再必会心）');
 r = JX3.simulate(A([LR, CH, CH, CH, JS, YZ, YY, YY, YY, JS]), { gmAutoCrit: true });
 ok(r.events[9].forceCrit === true, '开启「自动也必会心」后生效');
@@ -116,7 +121,7 @@ ok(Math.abs(r.events[2].start - r.events[1].end) < 1e-9, '暗尘后下一技能�
 ok(Math.abs(r.events[2].start - r.events[0].end) < 1e-9, '暗尘等同于瞬间插入（不额外占时）', r.events[2].start + ' vs ' + r.events[0].end);
 r = JX3.simulate(A([LR, AC, YZ]), {});
 ok(r.events[1].day === 40 && r.events[1].moon === 0 && r.events[1].riE === 1, '暗尘不改动资源（透传前后状态）', '日' + r.events[1].day + ' 月' + r.events[1].moon + ' 珥' + r.events[1].riE);
-ok(r.events[2].gmN === 1, '暗尘后银月斩仍正常结算珥芒→合成光明相', r.events[2].gmN);
+ok(r.events[2].gmN === 2, '暗尘后银月斩仍正常结算珥芒→求和合并光明相（1 日珥 + 1 月芒 = 2）', r.events[2].gmN);
 
 console.log('\n=== 7. 资源锁死 / 溢出 / 非法 ===');
 r = JX3.simulate(A([LR, CH, CH, CH, YZ, YY]), {});

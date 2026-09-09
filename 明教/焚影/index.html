@@ -342,9 +342,10 @@ var JX3 = (function () {
     function gmBlocked(start) { return gmWindowUntil > start; }   // 仅「主动光明相 10s 窗口」内阻断珥/芒生成；待消耗的存相层数（gmCharges）不阻断
     function checkMerge(start, ev) {
       if (riE > 0 && yueM > 0) {
-        var n = Math.min(riE, yueM);
-        riE -= n; yueM -= n; gmCharges += n; merges += n;
-        ev.notes.push('日珥×' + n + ' + 月芒×' + n + ' → 光明相×' + n);
+        var n = riE + yueM;   // 珥/芒无层数上限：同时存在时全部求和合并为光明相层数
+        ev.notes.push('日珥×' + riE + ' + 月芒×' + yueM + ' → 光明相×' + n);
+        gmCharges += n; merges += n;
+        riE = 0; yueM = 0;
       }
     }
 
@@ -436,8 +437,9 @@ var JX3 = (function () {
           if (gmMode) {
             ev.gm = gmMode;
             if (gmMode === 'active') gmTriggers.active++; else gmTriggers.auto++;
-            if (form === 'day') day = RES_MAX; else moon = RES_MAX;    // 立即返还满灵
-            ev.notes.push('光明相·' + (gmMode === 'active' ? '主动' : '自动') + '：返还满' + (form === 'day' ? '日' : '月'));
+            var other = form === 'day' ? 'moon' : 'day';
+            if (other === 'day') day = RES_MAX; else moon = RES_MAX;    // 返还异色满灵（交替日月）
+            ev.notes.push('光明相·' + (gmMode === 'active' ? '主动' : '自动') + '：返还满' + (other === 'day' ? '日' : '月'));
             if (gmMode === 'active' || cfg.gmAutoCrit) { ev.forceCrit = true; ev.notes.push('必会心'); }
             if (gmMode === 'active') {
               var cmG = 1 + Math.min(1, cfg.crit) * (cfg.critMult - 1);
@@ -850,7 +852,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
       g += '<path d="' + d + ' L ' + last + ' ' + yv(pv) + ' L ' + last + ' ' + (row.y + row.h) + ' L ' + x(0) + ' ' + (row.y + row.h) + ' Z" fill="' + fillc + '" opacity="0.5"/>';
       g += '<path d="' + d + ' L ' + last + ' ' + yv(pv) + '" fill="none" stroke="' + color + '" stroke-width="1.5"/>';
       g += '<line x1="0" y1="' + row.y + '" x2="' + W + '" y2="' + row.y + '" stroke="' + color + '" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.55"/>';
-      g += '<text x="' + (W - 4) + '" y="' + (row.y + row.h - 3) + '" font-size="9" fill="' + color + '" text-anchor="end">上限 ' + (unit ? maxV : '100') + '</text>';
+      // 只显示当前层数（选中技能时取该时刻，否则取末尾状态），不标上限
+      var vi = state.sel >= 0 ? state.sel : r.trace.length - 1;
+      var vNow = r.trace[vi] ? r.trace[vi][key] : 0;
+      g += '<text x="' + (W - 4) + '" y="' + (row.y + row.h - 3) + '" font-size="9" fill="' + color + '" text-anchor="end">' + vNow + '</text>';
     }
     stepRow(ROWS[1], 'day', '#EF9F27', '#FAEEDA', 100);
     stepRow(ROWS[2], 'moon', '#378ADD', '#E6F1FB', 100);
