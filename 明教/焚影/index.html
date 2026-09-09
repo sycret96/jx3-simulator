@@ -824,16 +824,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
 
   function renderTimeline(r) {
     var pps = state.pps, W = PAD_L + Math.max(r.duration, 6) * pps + 30;
-    // 目标 debuff 行（数据驱动；生死劫DOT 暂无数据则不占位）
+    // 目标 debuff 行（常驻显示；无数据则画空行）
+    var ssjWins = r.debWindows.ssj || [];
     var debDefs = [
       { key: 'liri', label: '烈日', color: '#EF9F27', wins: r.debWindows.liri },
       { key: 'yinyue', label: '银月', color: '#378ADD', wins: r.debWindows.yinyue },
-      { key: 'ssj', label: '生死劫DOT', color: '#C23B5E', wins: r.debWindows.ssj || [] }
+      { key: 'ssj-day', label: '日劫', color: '#C23B5E', wins: ssjWins.filter(function (w) { return w.form === 'day'; }) },
+      { key: 'ssj-moon', label: '月劫', color: '#C23B5E', wins: ssjWins.filter(function (w) { return w.form === 'moon'; }) }
     ];
     var debRows = [], dyy = DEB_Y0;
     debDefs.forEach(function (d) {
       var w = d.wins || [];
-      if (d.key === 'ssj' && !w.length) return;   // 生死劫DOT 待建模，尚无数据则不占位
       debRows.push({ key: d.key, label: d.label, y: dyy, h: 18, color: d.color, wins: w });
       dyy += 20;
     });
@@ -925,7 +926,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
     g += '<line x1="0" y1="' + DIV_Y + '" x2="' + W + '" y2="' + DIV_Y + '" stroke="#E3DFD6"/>';
     g += '<line x1="0" y1="' + (DIV_Y + 26) + '" x2="' + W + '" y2="' + (DIV_Y + 26) + '" stroke="#E3DFD6"/>';
     g += '<text x="6" y="' + (DIV_Y + 11) + '" font-size="9" font-weight="700" fill="#A39E92">自身状态（日灵 / 月魂 / 珥芒 / 光明相 / 伪装）</text>';
-    g += '<text x="6" y="' + (DIV_Y + 21) + '" font-size="9" font-weight="700" fill="#A39E92">目标 Debuff（烈日 / 银月 / 生死劫 DOT）</text>';
+    g += '<text x="6" y="' + (DIV_Y + 21) + '" font-size="9" font-weight="700" fill="#A39E92">目标 Debuff（烈日 / 银月 / 日劫 / 月劫）</text>';
     // 目标 debuff 行（不再与灵画在一起）
     debRows.forEach(function (row) {
       row.wins.forEach(function (w) {
