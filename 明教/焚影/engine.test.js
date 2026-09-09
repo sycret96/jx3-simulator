@@ -136,7 +136,7 @@ r = JX3.simulate(A([LR, LR, LR, LR]), {});
 ok(Math.abs(r.events[3].wait - 10.5) < 1e-9, '第 4 个烈日斩等充能 10.5s', r.events[3].wait);
 
 console.log('\n=== 8. 增伤 / 连击 / AoE / DOT ===');
-ok(Math.abs(JX3.simulate(A([LR, CH]), {}).events[1].damage / JX3.simulate(A([CH]), {}).events[0].damage - 1.5) < 1e-6, '烈日 debuff 下赤日轮 ×1.5');
+ok(Math.abs(JX3.simulate(A([LR, CH]), {}).events[1].damage - 2700) < 1e-6, '赤日轮一段实测伤害=2700（烈日不再额外叠 +50%）', Math.round(JX3.simulate(A([LR, CH]), {}).events[1].damage));
 r = JX3.simulate(A([CH, CH, JS, CH]), {});
 ok(r.events[0].seg === 0 && r.events[1].seg === 1, '连续赤日轮段数递增', r.events[0].seg + ',' + r.events[1].seg);
 const one = JX3.simulate(A([LR, CH, CH, CH, JS]), { targets: 1 }).events[4].damage;
