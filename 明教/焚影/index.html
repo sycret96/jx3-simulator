@@ -245,6 +245,9 @@ var JX3 = (function () {
     critMult: 1.75,
     arPen: 0,
     dotTick: 0,               // 银月 DOT 每跳（情报缺失，实测后填）
+    miye: true,               // 【靡业报劫】生死劫 +25% 并附带 20s DOT（固定点法写死）
+    ssjDotTick: 2900,         // 靡业报劫 DOT 每跳无buff伤害（日劫/月劫相同）；实测 2s×10跳；值已含 +25% 及生死劫秘籍加成
+    ssjDotTicks: 10, ssjDotInterval: 2,   // 持续 20s / 每 2s 一跳
     priority: 'day',          // 耗灵技优先消耗：'day' 先消耗满日 / 'moon' 先消耗满月
     jingshiMoonRefund: true,  // 秘籍：净世消耗满月 → +20 月魂
     pve: true,                // 非侠士目标（伤害按 ×N 倍率、DOT/珥芒生效）；设 false 走侠士数值
@@ -260,9 +263,10 @@ var JX3 = (function () {
     // 点法：日月同辉 / 崇光斩恶 / 无明业火 / 靡业报劫 / 双曜转辉
     //       / 日月齐光 / 明光恒照 / 日月耀临 / 明焰续夜
     // 已建模：日月同辉(珥芒体系/充能/光明相不再必会心)、崇光斩恶(光明相额外伤害×3.65)、
-    //        双曜转辉(生死劫秘籍)、明焰续夜(驱夜+40、珥芒≥2重置CD/无视方位)。
+    //        双曜转辉(生死劫秘籍)、明焰续夜(驱夜+40、珥芒≥2重置CD/无视方位)、
+    //        靡业报劫(生死劫+25%及20s DOT，每2s一跳、日劫/月劫各2900，计入总伤与劫DOT统计)。
     // 暂未建模（待补或以配置项近似）：无明业火(背后会心+12%)→ 计入 crit/critMult；
-    //        靡业报劫(生死劫+25%及20s DOT)、日月齐光(每层珥/芒+5%对应攻击)、
+    //        日月齐光(每层珥/芒+5%对应攻击)、
     //        明光恒照(下次异色满灵+18%攻击)、日月耀临(无双+20%/无视30%内防/距离+2尺→折算 arPen)。
   };
 
@@ -302,7 +306,7 @@ var JX3 = (function () {
 
     var db = { liri: -1e9, yinyue: -1e9 };
     var dotWindows = [], gmWindows = [], stealthWindows = [];
-    var debWindows = { liri: [], yinyue: [] };
+    var debWindows = { liri: [], yinyue: [], ssj: [] };
     var comboSkill = null, comboIdx = 0;
     var t = 0, total = 0, waitTotal = 0, illegalCount = 0;
     var overflow = { day: 0, moon: 0 }, blocked = { day: 0, moon: 0 };
@@ -392,11 +396,22 @@ var JX3 = (function () {
 
       // 耗灵技：净世破魔击 / 生死劫
       if (sk.spend) {
+        // 先判定光明相：主动窗口 or 存相 charge → 提供满灵，可施放（不必先攒满）
+        var gmMode = null;
+        if (gmWindowUntil > start) { gmMode = 'active'; gmWindowUntil = -1e9; }
+        else if (gmCharges > 0) { gmMode = 'auto'; }
+
         var form = null;
-        if (cfg.priority === 'day') {
-          if (day >= RES_MAX) form = 'day'; else if (moon >= RES_MAX) form = 'moon';
+        if (gmMode) {
+          // 光明相提供满灵：按优先级选定形态（无满灵时取优先级一侧，消耗后由返还补异色满灵）
+          if (cfg.priority === 'day') form = (day >= RES_MAX) ? 'day' : (moon >= RES_MAX ? 'moon' : 'day');
+          else form = (moon >= RES_MAX) ? 'moon' : (day >= RES_MAX ? 'day' : 'moon');
         } else {
-          if (moon >= RES_MAX) form = 'moon'; else if (day >= RES_MAX) form = 'day';
+          if (cfg.priority === 'day') {
+            if (day >= RES_MAX) form = 'day'; else if (moon >= RES_MAX) form = 'moon';
+          } else {
+            if (moon >= RES_MAX) form = 'moon'; else if (day >= RES_MAX) form = 'day';
+          }
         }
         if (!form) {
           legal = false;
@@ -430,16 +445,23 @@ var JX3 = (function () {
             checkMerge(start, ev);
           }
 
-          // 光明相
-          var gmMode = null;
-          if (gmWindowUntil > start) { gmMode = 'active'; gmWindowUntil = -1e9; }
-          else if (gmCharges > 0) { gmMode = 'auto'; gmCharges--; }
+          // 靡业报劫：生死劫 DOT（持续 20s / 每 2s 一跳 / 日劫=阳性 月劫=阴性）
+          if (sk.key === 'shengsijie' && cfg.miye) {
+            var sod = debWindows.ssj, ls = null;
+            for (var si = sod.length - 1; si >= 0; si--) { if (sod[si].form === form) { ls = sod[si]; break; } }
+            if (ls && ls.end > start) ls.end = start;   // 每种属性只作用于一个目标：同属性刷新而非叠加
+            sod.push({ start: start, end: start + cfg.ssjDotTicks * cfg.ssjDotInterval, form: form });
+            ev.notes.push('靡业报劫 DOT·' + (form === 'day' ? '日' : '月') + ' ' + cfg.ssjDotTicks + '跳');
+          }
+
+          // 光明相触发
           if (gmMode) {
             ev.gm = gmMode;
             if (gmMode === 'active') gmTriggers.active++; else gmTriggers.auto++;
-            var other = form === 'day' ? 'moon' : 'day';
-            if (other === 'day') day = RES_MAX; else moon = RES_MAX;    // 返还异色满灵（交替日月）
-            ev.notes.push('光明相·' + (gmMode === 'active' ? '主动' : '自动') + '：返还满' + (other === 'day' ? '日' : '月'));
+            if (gmCharges > 0) gmCharges--;   // 消耗一次存相（主动与自动同源）
+            var other2 = form === 'day' ? 'moon' : 'day';
+            if (other2 === 'day') day = RES_MAX; else moon = RES_MAX;    // 返还异色满灵（交替日月）
+            ev.notes.push('光明相·' + (gmMode === 'active' ? '主动' : '自动') + '：返还满' + (other2 === 'day' ? '日' : '月'));
             if (gmMode === 'active' || cfg.gmAutoCrit) { ev.forceCrit = true; ev.notes.push('必会心'); }
             if (gmMode === 'active') {
               var cmG = 1 + Math.min(1, cfg.crit) * (cfg.critMult - 1);
@@ -477,7 +499,8 @@ var JX3 = (function () {
         if (sk.key === 'guangmingxiang') {
           gmWindowUntil = start + 10;
           gmWindows.push({ start: start, end: gmWindowUntil });
-          ev.notes.push('10s 窗口开启');
+          gmCharges++;   // 主动光明相也是一次存相：buff +1（可叠在珥/芒自动存相之上）
+          ev.notes.push('10s 窗口开启，光明相 +1');
         }
         if (sk.key === 'anchenmisan') {
           stealthUntil = start + cfg.stealthDur;
@@ -536,7 +559,7 @@ var JX3 = (function () {
     }
 
     // DOT 结算
-    var dotDmg = 0;
+    var dotDmg = 0, ssjDotDmg = 0;
     if (cfg.dotTick > 0) {
       for (var w = 0; w < dotWindows.length; w++) {
         var wt = dotWindows[w];
@@ -544,7 +567,16 @@ var JX3 = (function () {
         if (ticks > 0) dotDmg += ticks * cfg.dotTick * (1 + cfg.dmgBonus) * (1 + cfg.arPen);
       }
     }
-    total += dotDmg;
+    if (cfg.miye) {
+      for (var s = 0; s < debWindows.ssj.length; s++) {
+        var ws = debWindows.ssj[s];
+        var st = Math.floor((Math.min(ws.end, t) - ws.start) / 2);
+        if (st > 0) ssjDotDmg += st * cfg.ssjDotTick * (1 + cfg.dmgBonus) * (1 + cfg.arPen);
+      }
+    }
+    total += dotDmg + ssjDotDmg;
+    bySkill['shengsijie'] = bySkill['shengsijie'] || { n: 0, dmg: 0 };
+    bySkill['shengsijie'].dmg += ssjDotDmg;
 
     var list = [];
     for (var key in bySkill) {
@@ -563,7 +595,7 @@ var JX3 = (function () {
     }
 
     return {
-      events: events, trace: trace, duration: t, total: total, dotDmg: dotDmg,
+      events: events, trace: trace, duration: t, total: total, dotDmg: dotDmg, ssjDotDmg: ssjDotDmg,
       dps: t > 0 ? total / t : 0,
       bySkill: list, overflow: overflow, blocked: blocked, waitTotal: waitTotal,
       illegalCount: illegalCount, jingshi: { day: jd, moon: jm },
@@ -592,7 +624,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
     { key: 'gm', label: '光明相', y: 206, h: 18 },
     { key: 'stealth', label: '伪装', y: 228, h: 18 }
   ];
-  var TL_H = 258, AXIS_Y = 252, PAD_L = 6;
+  var DIV_Y = 250, DEB_Y0 = 282, PAD_L = 6;   // DIV_Y=自身/目标分隔带顶；DEB_Y0=目标 debuff 行起始
   var COLORS = {
     '日': { bg: '#FAEEDA', line: '#EF9F27', tx: '#854F0B' },
     '月': { bg: '#E6F1FB', line: '#378ADD', tx: '#185FA5' },
@@ -779,6 +811,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
       { k: '净世 日/月', v: r.jingshi.day + ' / ' + r.jingshi.moon },
       { k: '光明相', v: (r.gmTriggers.active + r.gmTriggers.auto) + '<small> 触发</small>' },
       { k: '珥 / 芒', v: r.ermang.riE + ' / ' + r.ermang.yueM },
+      { k: '劫 DOT', v: fmt(r.ssjDotDmg) },
       { k: '日灵溢出', v: r.overflow.day + (r.blocked.day ? '<small> (锁' + r.blocked.day + ')</small>' : '') },
       { k: '月魂溢出', v: r.overflow.moon + (r.blocked.moon ? '<small> (锁' + r.blocked.moon + ')</small>' : '') },
       { k: '等待 CD', v: r.waitTotal.toFixed(2) + '<small> s</small>' },
@@ -791,19 +824,35 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
 
   function renderTimeline(r) {
     var pps = state.pps, W = PAD_L + Math.max(r.duration, 6) * pps + 30;
+    // 目标 debuff 行（数据驱动；生死劫DOT 暂无数据则不占位）
+    var debDefs = [
+      { key: 'liri', label: '烈日', color: '#EF9F27', wins: r.debWindows.liri },
+      { key: 'yinyue', label: '银月', color: '#378ADD', wins: r.debWindows.yinyue },
+      { key: 'ssj', label: '生死劫DOT', color: '#C23B5E', wins: r.debWindows.ssj || [] }
+    ];
+    var debRows = [], dyy = DEB_Y0;
+    debDefs.forEach(function (d) {
+      var w = d.wins || [];
+      if (d.key === 'ssj' && !w.length) return;   // 生死劫DOT 待建模，尚无数据则不占位
+      debRows.push({ key: d.key, label: d.label, y: dyy, h: 18, color: d.color, wins: w });
+      dyy += 20;
+    });
+    var TL_H = dyy + 8, AXIS_Y = dyy + 2;
+    var allRows = ROWS.concat(debRows);
     var svg = $('timeline');
     svg.setAttribute('width', W); svg.setAttribute('height', TL_H);
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + TL_H);
     var x = function (t) { return PAD_L + t * pps; };
 
     $('tllabels').style.height = TL_H + 'px';
-    $('tllabels').innerHTML = ROWS.map(function (row) {
+    $('tllabels').innerHTML = allRows.map(function (row) {
       return '<div style="top:' + row.y + 'px;height:' + row.h + 'px">' + row.label + '</div>';
     }).join('') + '<div style="top:' + (AXIS_Y - 4) + 'px;height:12px">秒</div>';
 
     var g = '';
-    ROWS.forEach(function (row) {
-      g += '<rect x="0" y="' + row.y + '" width="' + W + '" height="' + row.h + '" fill="' + (row.key === 'skill' ? '#fff' : '#FCFBF9') + '"/>';
+    allRows.forEach(function (row) {
+      var bg = row.key === 'skill' ? '#fff' : (row.wins ? '#FBF7F7' : '#FCFBF9');   // 目标 debuff 行微微偏红
+      g += '<rect x="0" y="' + row.y + '" width="' + W + '" height="' + row.h + '" fill="' + bg + '"/>';
     });
     var stepT = pps > 50 ? 1 : pps > 22 ? 2 : 5;
     for (var tt = 0; tt <= r.duration + 0.001; tt += stepT) {
@@ -851,9 +900,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
       var last = x(Math.max(r.duration, 1));
       g += '<path d="' + d + ' L ' + last + ' ' + yv(pv) + ' L ' + last + ' ' + (row.y + row.h) + ' L ' + x(0) + ' ' + (row.y + row.h) + ' Z" fill="' + fillc + '" opacity="0.5"/>';
       g += '<path d="' + d + ' L ' + last + ' ' + yv(pv) + '" fill="none" stroke="' + color + '" stroke-width="1.5"/>';
-      g += '<line x1="0" y1="' + row.y + '" x2="' + W + '" y2="' + row.y + '" stroke="' + color + '" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.55"/>';
-      // 只显示当前层数（选中技能时取该时刻，否则取末尾状态），不标上限
-      var vi = state.sel >= 0 ? state.sel : r.trace.length - 1;
+      // 不画顶部满值刻度线（用户不关心上限）；阶梯线本身已表达当前量，满灵时自然到顶
+      var vi = state.sel >= 0 ? Math.min(state.sel + 1, r.trace.length - 1) : r.trace.length - 1;
       var vNow = r.trace[vi] ? r.trace[vi][key] : 0;
       g += '<text x="' + (W - 4) + '" y="' + (row.y + row.h - 3) + '" font-size="9" fill="' + color + '" text-anchor="end">' + vNow + '</text>';
     }
@@ -870,17 +918,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
         if (ww > 0) g += '<rect x="' + wx + '" y="' + row.y + '" width="' + ww + '" height="' + row.h + '" fill="' + color + '" opacity="0.45" rx="2"/>';
       });
     }
-    bars(ROWS[3], [], '#000');
-    bars(ROWS[5], r.gmWindows, '#7F77DD');   // 主动光明相窗口
+    bars(ROWS[5], r.gmWindows, '#7F77DD');   // 主动光明相窗口（自身）
     bars(ROWS[6], r.stealthWindows, '#888780');
-    // debuff 行挂在月魂行下方空白处：用日珥/月芒行之上？改为贴在资源行内
-    r.debWindows.liri.forEach(function (w) {
-      var wx = x(w.start), ww = Math.max(1, (Math.min(w.end, r.duration) - w.start) * pps);
-      g += '<rect x="' + wx + '" y="' + (ROWS[1].y + 2) + '" width="' + ww + '" height="4" fill="#EF9F27" opacity="0.8" rx="2"/>';
-    });
-    r.debWindows.yinyue.forEach(function (w) {
-      var wx = x(w.start), ww = Math.max(1, (Math.min(w.end, r.duration) - w.start) * pps);
-      g += '<rect x="' + wx + '" y="' + (ROWS[2].y + 2) + '" width="' + ww + '" height="4" fill="#378ADD" opacity="0.8" rx="2"/>';
+    // 自身 / 目标 分隔带
+    g += '<rect x="0" y="' + DIV_Y + '" width="' + W + '" height="26" fill="#F2F0EB"/>';
+    g += '<line x1="0" y1="' + DIV_Y + '" x2="' + W + '" y2="' + DIV_Y + '" stroke="#E3DFD6"/>';
+    g += '<line x1="0" y1="' + (DIV_Y + 26) + '" x2="' + W + '" y2="' + (DIV_Y + 26) + '" stroke="#E3DFD6"/>';
+    g += '<text x="6" y="' + (DIV_Y + 11) + '" font-size="9" font-weight="700" fill="#A39E92">自身状态（日灵 / 月魂 / 珥芒 / 光明相 / 伪装）</text>';
+    g += '<text x="6" y="' + (DIV_Y + 21) + '" font-size="9" font-weight="700" fill="#A39E92">目标 Debuff（烈日 / 银月 / 生死劫 DOT）</text>';
+    // 目标 debuff 行（不再与灵画在一起）
+    debRows.forEach(function (row) {
+      row.wins.forEach(function (w) {
+        var wx = x(w.start), ww = Math.max(1, (Math.min(w.end, r.duration) - w.start) * pps);
+        if (ww > 0) g += '<rect x="' + wx + '" y="' + row.y + '" width="' + ww + '" height="' + row.h + '" fill="' + row.color + '" opacity="0.5" rx="2"/>';
+      });
     });
 
     svg.innerHTML = g;

@@ -145,6 +145,22 @@ ok(five > one * 2, '5 目标时净世满日 AoE 伤害提高', Math.round(one) +
 ok(Math.abs(JX3.simulate(A([YZ, CH, CH, CH]), { dotTick: 100 }).dotDmg - 300) < 1e-6, 'DOT 6s 内跳 3 次', JX3.simulate(A([YZ, CH, CH, CH]), { dotTick: 100 }).dotDmg);
 ok(JX3.simulate(A([YZ, YZ]), { dotTick: 100 }).dotDmg === 0, '提前刷新 DOT 吞掉剩余跳数');
 
+console.log('\n=== 8b. 靡业报劫 DOT（生死劫 20s / 2s×10跳 / 每跳 2900）===');
+function fill(skill, n) { for (var i = 0; i < n; i++) ssjSeq.push({ skill: skill }); }
+let ssjSeq = A([LR, CH, CH, CH, SSJ]); fill('chirilun', 16);   // 续到 ~30s 让 DOT 跑满 10 跳
+r = JX3.simulate(ssjSeq, {});
+ok(r.ssjDotDmg === 29000, '靡业报劫 DOT = 10跳 × 2900 = 29000', r.ssjDotDmg);
+ok(r.debWindows.ssj.length === 1 && r.debWindows.ssj[0].form === 'day'
+   && Math.abs(r.debWindows.ssj[0].end - r.debWindows.ssj[0].start - 20) < 1e-9,
+   '生死劫DOT窗口 20s（日劫）', JSON.stringify(r.debWindows.ssj[0]));
+ok((r.bySkill.find(b => b.key === 'shengsijie') || {}).dmg >= r.ssjDotDmg,
+   '劫DOT 计入生死劫总伤', (r.bySkill.find(b => b.key === 'shengsijie') || {}).dmg);
+r = JX3.simulate(A([LR, CH, CH, CH, SSJ, YZ, YY, YY, YY, SSJ]), {});
+ok(r.debWindows.ssj.length === 2 && r.debWindows.ssj[0].form === 'day' && r.debWindows.ssj[1].form === 'moon',
+   '日劫 + 月劫 各记一个独立 DOT 窗口', r.debWindows.ssj.map(w => w.form).join(','));
+r = JX3.simulate(A([LR, CH, CH, CH, SSJ, YZ, YY, YY, YY, SSJ]), { miye: false });
+ok(r.ssjDotDmg === 0 && r.debWindows.ssj.length === 0, '关闭靡业报劫后无 DOT', r.ssjDotDmg);
+
 console.log('\n=== 9. 示例·齐光 全流程 ===');
 const DEMO2 = [LR, CH, CH, CH, JS, YZ, YY, YY, YY, GM, JS, JS, SSJ, AC, QY];
 r = JX3.simulate(A(DEMO2), {});
