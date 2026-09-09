@@ -91,6 +91,19 @@ r = JX3.simulate(A([QY]), { quyeRequireStealth: true });
 ok(r.events[0].illegal === true, '勾选「必须伪装」后无隐身则非法');
 ok(r.events[0].damage === 0, '非法驱夜不计伤害');
 
+console.log('\n=== 6.5 驱夜断愁方向跟随珥/芒（明焰续夜）===');
+r = JX3.simulate(A([YZ, QY]), {});
+ok(r.events[0].yueM === 1, '银月斩得月芒', r.events[0].yueM);
+ok(r.events[1].moon === 80, '有月芒时驱夜给月魂（40+40）', r.events[1].moon);
+ok(r.events[1].day === 0, '有月芒无日珥时不给日灵', r.events[1].day);
+ok(r.events[1].gain.res === 'moon', '驱夜资源方向=月魂', r.events[1].gain.res);
+r = JX3.simulate(A([LR, QY]), {});
+ok(r.events[0].riE === 1, '烈日斩得日珥', r.events[0].riE);
+ok(r.events[1].day === 80, '有日珥时驱夜给日灵', r.events[1].day);
+ok(r.events[1].gain.res === 'day', '驱夜资源方向=日灵', r.events[1].gain.res);
+r = JX3.simulate(A([AC, QY]), {});
+ok(r.events[1].day === 40 && r.events[1].moon === 0, '无珥芒时回落补较低（日灵）', '日' + r.events[1].day + ' 月' + r.events[1].moon);
+
 console.log('\n=== 7. 资源锁死 / 溢出 / 非法 ===');
 r = JX3.simulate(A([LR, CH, CH, CH, YZ, YY]), {});
 ok(r.events[4].moon === 0 && r.blocked.moon === 60, '日灵满时月魂被锁死', 'moon=' + r.events[4].moon + ' blocked=' + r.blocked.moon);

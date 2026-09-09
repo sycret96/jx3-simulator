@@ -495,7 +495,9 @@ var JX3 = (function () {
           if (res === 'auto') {
             if (cfg.quyeRes === 'day') res = 'day';
             else if (cfg.quyeRes === 'moon') res = 'moon';
-            else res = day <= moon ? 'day' : 'moon';   // 自动：补较低的一边
+            else if (yueM > 0) res = 'moon';                    // 明焰续夜：跟随月芒
+            else if (riE > 0) res = 'day';                      // 明焰续夜：跟随日珥
+            else res = day <= moon ? 'day' : 'moon';            // 无珥芒 → 补较低
           }
           var resName = res === 'day' ? '日灵' : '月魂';
           var got = addRes(res, sk.gain.amount);
