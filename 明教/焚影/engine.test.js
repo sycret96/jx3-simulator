@@ -79,7 +79,7 @@ ok(r.events[9].forceCrit === true, '开启「自动也必会心」后生效');
 console.log('\n=== 6. 暗尘弥散 + 驱夜断愁 ===');
 r = JX3.simulate(A([AC, QY]), {});
 console.log('  ' + r.events[1].notes.join(';'));
-ok(r.events[1].day === 60, '驱夜断愁 +60 资源（自动补日灵）', r.events[1].day);
+ok(r.events[1].day === 40, '驱夜断愁 +40 资源（点【明焰续夜】后为 40）', r.events[1].day);
 ok(r.events[1].wait === 0, '伪装中重置 CD，无需等待', r.events[1].wait);
 ok(r.quyeResets >= 1, '进入伪装重置驱夜 CD', r.quyeResets);
 r = JX3.simulate(A([QY, QY]), {});

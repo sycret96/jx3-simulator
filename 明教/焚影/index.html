@@ -218,8 +218,8 @@ var JX3 = (function () {
     quyeduanchou: {
       key: 'quyeduanchou', name: '驱夜断愁', short: '驱', kind: '月', cd: true,
       hits: [{ label: '', base: 9, fixed: 3398, wd: 2.0, aoe: 1 }],
-      gain: { res: 'auto', amount: 60 },
-      note: '需伪装/潜隐或背后；+60 日灵或月魂；背后 +30%；进伪装重置 CD；珥/芒≥2 层可免方位'
+      gain: { res: 'auto', amount: 40 },   // 点【明焰续夜】后为 40（基础招式 60）
+      note: '需伪装/潜隐或背后；+40 日灵或月魂（点明焰续夜）；背后 +30%；进伪装重置 CD；珥/芒≥2 可无视方位并重置 CD'
     },
     anchenmisan: {
       key: 'anchenmisan', name: '暗尘弥散', short: '尘', kind: '辅助', charge: true,
@@ -230,10 +230,10 @@ var JX3 = (function () {
 
   var DEFAULT_CFG = {
     gcd: 1.5,             // 公共调息
-    cdDual: 15, maxDual: 3,   // 烈日斩/银月斩：6s，秘籍 +9s → 15s，3 层
-    cdSSJ: 15, maxSSJ: 2,     // 生死劫：15s，秘籍 2 层
+    cdDual: 15, maxDual: 3,   // 烈日斩/银月斩：点【日月同辉】后 15s / 3 层（未点为 6s / 1 层）
+    cdSSJ: 15, maxSSJ: 2,     // 生死劫：点【双曜转辉】后 15s / 2 层
     cdAC: 40, maxAC: 1,       // 暗尘弥散
-    cdGM: 95,                 // 光明相：1分35s，秘籍 -30s → 65s
+    cdGM: 95,                 // 光明相：1分35s；点【五明乐见】再 -5s
     cdQY: 25,                 // 驱夜断愁
     stealthDur: 5,            // 伪装持续（战斗中）
     targets: 1,
@@ -243,16 +243,25 @@ var JX3 = (function () {
     critMult: 1.75,
     arPen: 0,
     dotTick: 0,               // 银月 DOT 每跳（情报缺失，实测后填）
-    priority: 'day',          // 耗灵技优先消耗
-    jingshiMoonRefund: true,  // 秘籍：净世消耗满月 +20 月魂
-    zhanbuli: true,           // 净世命中带烈日/银月 → 附加 10-12(+1114)，非侠士 ×1.75
-    pve: true,
-    ermang: true,             // 日珥/月芒体系
-    ssjSecret: true,          // 生死劫秘籍（珥/芒 + 异色返灵 + 颜色互换）
-    gmAutoCrit: false,        // 自动转化的光明相是否必会心（情报：生效时不再必会心）
-    quyeBackstab: true,       // 驱夜断愁按背后计算 +30%
-    quyeRequireStealth: false,// 驱夜断愁必须处于伪装/潜隐
-    quyeRes: 'auto'           // 驱夜断愁资源去向：auto / day / moon
+    priority: 'day',          // 耗灵技优先消耗：'day' 先消耗满日 / 'moon' 先消耗满月
+    jingshiMoonRefund: true,  // 秘籍：净世消耗满月 → +20 月魂
+    pve: true,                // 非侠士目标（伤害按 ×N 倍率、DOT/珥芒生效）；设 false 走侠士数值
+    zhanbuli: false,          // 斩不利附加：本点法选【靡业报劫】而非【净体不畏】，故关闭
+    ermang: true,             // 【日月同辉】珥/芒体系、烈日银月 15s/3 层、光明相不再必会心
+    ssjSecret: true,          // 【双曜转辉】生死劫：得珥芒 + 返异色满灵 + 颜色互换 + 2层/15s
+    gmAutoCrit: false,        // 自动（珥+芒合成）光明相不强制会心（【日月同辉】原文：不再必会心）
+    quyeBackstab: true,       // 驱夜断愁背后 +30%（PVE 站桩默认在背后）
+    quyeRequireStealth: false,// 驱夜断愁是否强制伪装/潜隐（点【明焰续夜】后可无视方位，故默认关）
+    quyeRes: 'auto'           // 驱夜断愁资源去向：auto=补较低一边 / day / moon
+
+    // ── 引擎已按当前测试服固定点法写死，不做奇穴开关 ──
+    // 点法：日月同辉 / 崇光斩恶 / 无明业火 / 靡业报劫 / 双曜转辉
+    //       / 日月齐光 / 明光恒照 / 日月耀临 / 明焰续夜
+    // 已建模：日月同辉(珥芒体系/充能/光明相不再必会心)、崇光斩恶(光明相额外伤害×3.65)、
+    //        双曜转辉(生死劫秘籍)、明焰续夜(驱夜+40、珥芒≥2重置CD/无视方位)。
+    // 暂未建模（待补或以配置项近似）：无明业火(背后会心+12%)→ 计入 crit/critMult；
+    //        靡业报劫(生死劫+25%及20s DOT)、日月齐光(每层珥/芒+5%对应攻击)、
+    //        明光恒照(下次异色满灵+18%攻击)、日月耀临(无双+20%/无视30%内防/距离+2尺→折算 arPen)。
   };
 
   function hitDamage(sk, hit, start, cfg, db, forceCrit, extraMult) {
@@ -483,7 +492,11 @@ var JX3 = (function () {
         // 资源生成
         if (sk.gain) {
           var res = sk.gain.res;
-          if (res === 'auto') res = day <= moon ? 'day' : 'moon';   // 自动：补较低的一边
+          if (res === 'auto') {
+            if (cfg.quyeRes === 'day') res = 'day';
+            else if (cfg.quyeRes === 'moon') res = 'moon';
+            else res = day <= moon ? 'day' : 'moon';   // 自动：补较低的一边
+          }
           var resName = res === 'day' ? '日灵' : '月魂';
           var got = addRes(res, sk.gain.amount);
           ev.gain = { res: res, got: got, want: sk.gain.amount };
