@@ -35,7 +35,7 @@ ok(r.events[4].day === 0, '净世后日灵清零', r.events[4].day);
 ok(r.events[8].moon === 100, '幽月轮三段后月魂满 100', r.events[8].moon);
 ok(r.events[9].form === 'moon', '第二次净世取满月形态', r.events[9].form);
 ok(r.illegalCount === 0, '无非法施放', r.illegalCount);
-ok(Math.abs(r.duration - 15) < 1e-9, '10 技能 × 1.5s GCD = 15s', r.duration);
+ok(Math.abs(r.duration - 10) < 1e-9, '10 技能 × 1.0s GCD = 10s', r.duration);
 
 console.log('\n=== 2. 日珥 / 月芒 → 光明相 ===');
 r = JX3.simulate(A([LR, CH, CH, CH, JS, YZ]), {});
@@ -92,7 +92,7 @@ ok(r.events[1].day === 40, '驱夜断愁 +40 资源（点【明焰续夜】后�
 ok(r.events[1].wait === 0, '伪装中重置 CD，无需等待', r.events[1].wait);
 ok(r.quyeResets >= 1, '进入伪装重置驱夜 CD', r.quyeResets);
 r = JX3.simulate(A([QY, QY]), {});
-ok(Math.abs(r.events[1].wait - 23.5) < 1e-9, '无伪装时第二次驱夜等 25s 调息（等 23.5s）', r.events[1].wait);
+ok(Math.abs(r.events[1].wait - 24) < 1e-9, '无伪装时第二次驱夜等 25s 调息（等 24s）', r.events[1].wait);
 const back = JX3.simulate(A([QY]), { quyeBackstab: true }).events[0].damage;
 const front = JX3.simulate(A([QY]), { quyeBackstab: false }).events[0].damage;
 ok(Math.abs(back / front - 1.3) < 1e-6, '背后施展 +30%', (back / front).toFixed(4));
@@ -133,7 +133,7 @@ ok(r.events[0].illegal === true, '生死劫无满资源 → 非法');
 r = JX3.simulate(A([CH, CH, CH, CH, CH, CH]), {});
 ok(r.overflow.day === 20, '日灵溢出 20', r.overflow.day);
 r = JX3.simulate(A([LR, LR, LR, LR]), {});
-ok(Math.abs(r.events[3].wait - 10.5) < 1e-9, '第 4 个烈日斩等充能 10.5s', r.events[3].wait);
+ok(Math.abs(r.events[3].wait - 12) < 1e-9, '第 4 个烈日斩等充能 12s', r.events[3].wait);
 
 console.log('\n=== 8. 增伤 / 连击 / AoE / DOT ===');
 ok(Math.abs(JX3.simulate(A([LR, CH]), {}).events[1].damage - 2700) < 1e-6, '赤日轮一段实测伤害=2700（烈日不再额外叠 +50%）', Math.round(JX3.simulate(A([LR, CH]), {}).events[1].damage));
@@ -142,12 +142,12 @@ ok(r.events[0].seg === 0 && r.events[1].seg === 1, '连续赤日轮段数递增'
 const one = JX3.simulate(A([LR, CH, CH, CH, JS]), { targets: 1 }).events[4].damage;
 const five = JX3.simulate(A([LR, CH, CH, CH, JS]), { targets: 5 }).events[4].damage;
 ok(five > one * 2, '5 目标时净世满日 AoE 伤害提高', Math.round(one) + ' → ' + Math.round(five));
-ok(Math.abs(JX3.simulate(A([YZ, CH, CH, CH]), { dotTick: 100 }).dotDmg - 300) < 1e-6, 'DOT 6s 内跳 3 次', JX3.simulate(A([YZ, CH, CH, CH]), { dotTick: 100 }).dotDmg);
+ok(Math.abs(JX3.simulate(A([YZ, CH, CH, CH, CH, CH, CH]), { dotTick: 100 }).dotDmg - 300) < 1e-6, 'DOT 6s 内跳 3 次', JX3.simulate(A([YZ, CH, CH, CH, CH, CH, CH]), { dotTick: 100 }).dotDmg);
 ok(JX3.simulate(A([YZ, YZ]), { dotTick: 100 }).dotDmg === 0, '提前刷新 DOT 吞掉剩余跳数');
 
 console.log('\n=== 8b. 靡业报劫 DOT（生死劫 20s / 2s×10跳 / 每跳 2900）===');
 function fill(skill, n) { for (var i = 0; i < n; i++) ssjSeq.push({ skill: skill }); }
-let ssjSeq = A([LR, CH, CH, CH, SSJ]); fill('chirilun', 16);   // 续到 ~30s 让 DOT 跑满 10 跳
+let ssjSeq = A([LR, CH, CH, CH, SSJ]); fill('chirilun', 20);   // 续到 ~25s 让 DOT 跑满 10 跳
 r = JX3.simulate(ssjSeq, {});
 ok(r.ssjDotDmg === 29000, '靡业报劫 DOT = 10跳 × 2900 = 29000', r.ssjDotDmg);
 ok(r.debWindows.ssj.length === 1 && r.debWindows.ssj[0].form === 'day'

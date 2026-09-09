@@ -74,6 +74,27 @@
   .legend{display:flex;gap:10px;font-size:11px;color:var(--tx3);margin-top:6px;flex-wrap:wrap}
   .legend span{display:flex;align-items:center;gap:4px}
   .legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+  /* 顶部技能面板 */
+  .palette{display:flex;flex-wrap:wrap;gap:9px}
+  .phint{font-size:11px;color:var(--tx3);margin:6px 0 14px;line-height:1.5}
+  .phint b{font-weight:600}
+  .pk{position:relative;display:flex;flex-direction:column;gap:1px;width:148px;text-align:left;cursor:pointer;
+    border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 9px 7px 12px;font:inherit;color:var(--tx);
+    border-left:4px solid var(--line2)}
+  .pk:hover{border-color:var(--line2);background:#FAFAF8}
+  .pk .pdot{position:absolute;left:5px;top:11px;width:5px;height:5px;border-radius:2px}
+  .pk .pnm{font-size:13px;font-weight:500}
+  .pk .st{font-size:12px;font-weight:600;margin-top:1px}
+  .pk .sb{font-size:11px;color:var(--tx3)}
+  .st-ok{color:#1f8a3b}
+  .st-wait{color:#B5790E}
+  .st-no{color:#A32D2D}
+  .pk-ok{border-left-color:#5BB46A}
+  .pk-wait{border-left-color:#E0A93C}
+  .pk-no{border-left-color:#D56A6A}
+  /* 查看时刻游标 */
+  .zoom .sep{margin-left:14px}
+  .zoom .sep + input{flex:0 0 140px}
 </style>
 </head>
 <body>
@@ -83,13 +104,13 @@
     <span class="sub">剑网3 明教（齐光流）排轴器 · 单文件离线版</span>
   </header>
 
+  <section class="palette" id="palette" aria-label="技能面板（点击插入；卡片显示该时刻冷却/充能状态）"></section>
+  <p class="phint">点击技能插入序列（插到选中项之后）。卡片右侧为「查看时刻」下的冷却 / 充能状态：
+    <b style="color:#1f8a3b">绿=可用</b>、<b style="color:#B5790E">橙=冷却中</b>、<b style="color:#A32D2D">红=缺满灵</b>。
+    拖动下方「查看时刻」滑块，或直接点时间轴，即可定位到某一时刻查看每个技能是否就绪。</p>
+
   <div class="body">
     <aside class="side">
-      <div class="card">
-        <h2>技能（点击插入到选中项之后）</h2>
-        <div class="skills" id="skillBtns"></div>
-      </div>
-
       <div class="card">
         <h2>序列</h2>
         <div class="ops">
@@ -117,6 +138,8 @@
         <div class="zoom">
           <span>缩放</span><input type="range" id="zoom" min="8" max="80" value="30">
           <span id="zoomv"></span>
+          <span class="sep">查看时刻</span><input type="range" id="cursor" min="0" max="30" value="0" step="0.1">
+          <span id="cursorv"></span>
         </div>
         <div class="tlbox">
           <div class="tllabels" id="tllabels"></div>
@@ -231,10 +254,10 @@ var JX3 = (function () {
   };
 
   var DEFAULT_CFG = {
-    gcd: 1.5,             // 公共调息
+    gcd: 1.0,             // 公共调息（明教 GCD 默认 1s）
     cdDual: 15, maxDual: 3,   // 烈日斩/银月斩：点【日月同辉】后 15s / 3 层（未点为 6s / 1 层）
     cdSSJ: 15, maxSSJ: 2,     // 生死劫：点【双曜转辉】后 15s / 2 层
-    cdAC: 40, maxAC: 1,       // 暗尘弥散
+    cdAC: 40, maxAC: 2,       // 暗尘弥散：充能 2 层
     cdGM: 95,                 // 光明相：1分35s；点【五明乐见】再 -5s
     cdQY: 25,                 // 驱夜断愁
     stealthDur: 5,            // 伪装持续（战斗中）
@@ -539,7 +562,7 @@ var JX3 = (function () {
           }
         }
         if (sk.charge) useCharge(sk.key, start);
-        if (sk.cd) cdUntil[sk.key] = start + cdDef[sk.key];
+        if (sk.cd) { cdUntil[sk.key] = start + cdDef[sk.key]; ev.cdReady = cdUntil[sk.key]; }
       }
 
       var dur = sk.gcdFree ? 0 : gcd;
@@ -632,7 +655,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
     '辅助': { bg: '#F1EFE8', line: '#888780', tx: '#444441' }
   };
 
-  var state = { seq: [], cfg: {}, sel: -1, pps: 30 };
+  var state = { seq: [], cfg: {}, sel: -1, pps: 30, cursor: null };
   for (var k in D) state.cfg[k] = D[k];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -642,7 +665,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
   var STORE_KEY = 'jx3shell:明教/焚影';   // 每个心法一个 key，避免序列互相覆盖
 
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify({ seq: state.seq, cfg: state.cfg, pps: state.pps })); } catch (e) { }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ seq: state.seq, cfg: state.cfg, pps: state.pps, cursor: state.cursor })); } catch (e) { }
+  }
+  // 只恢复「配置面板里暴露的项」，结构常量（如 maxAC）始终用 DEFAULT_CFG，避免旧存档冻结新默认值
+  function applySavedCfg(o) {
+    if (!o) return;
+    var persist = {};
+    CFG_FIELDS.forEach(function (f) { persist[f.k] = 1; });
+    CHECKS.forEach(function (c) { persist[c.k] = 1; });
+    for (var k in o) if (k in persist) state.cfg[k] = o[k];
   }
   function load() {
     try {
@@ -650,8 +681,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
       var o = JSON.parse(raw);
       if (o && o.seq) {
         state.seq = o.seq;
-        if (o.cfg) for (var k in o.cfg) if (k in D) state.cfg[k] = o.cfg[k];
+        applySavedCfg(o.cfg);
         if (o.pps) state.pps = o.pps;
+        if (typeof o.cursor === 'number') state.cursor = o.cursor;
         return true;
       }
     } catch (e) { }
@@ -661,23 +693,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
   /* ---------- 技能按钮 ---------- */
   var ORDER = ['lirizhan', 'yinyuezhan', 'chirilun', 'youyuelun', 'jingshi',
     'shengsijie', 'guangmingxiang', 'quyeduanchou', 'anchenmisan'];
-  var TAGS = { chirilun: '3段', youyuelun: '3段', lirizhan: '充能', yinyuezhan: '充能',
-    jingshi: '耗灵', shengsijie: '耗灵', guangmingxiang: 'CD', quyeduanchou: 'CD', anchenmisan: '隐身' };
-  (function () {
-    $('skillBtns').innerHTML = ORDER.map(function (key) {
-      var s = S[key];
-      return '<button class="sk" data-k="' + key + '" title="' + esc(s.note) + '">'
-        + '<span class="dot" style="background:' + COLORS[s.kind].line + '"></span>'
-        + '<span class="nm">' + s.name + '</span><span class="tag">' + TAGS[key] + '</span></button>';
-    }).join('');
-    $('skillBtns').addEventListener('click', function (e) {
-      var b = e.target.closest('.sk'); if (b) insert(b.getAttribute('data-k'));
-    });
-  })();
+  // 技能面板改由 renderPalette 在顶部渲染（见下方「技能面板（实时 CD/充能状态）」）
 
   /* ---------- 配置 ---------- */
   var CFG_FIELDS = [
-    { k: 'gcd', label: '公共调息 GCD (s)', step: 0.05 },
     { k: 'cdDual', label: '烈日/银月 调息 (s)', step: 0.5 },
     { k: 'maxDual', label: '烈日/银月 层数', step: 1 },
     { k: 'cdSSJ', label: '生死劫 调息 (s)', step: 0.5 },
@@ -744,7 +763,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
   function insert(key) {
     var at = state.sel >= 0 ? state.sel + 1 : state.seq.length;
     state.seq.splice(at, 0, { skill: key });
-    state.sel = at; save(); render();
+    state.sel = at;
+    var r = JX3.simulate(state.seq, state.cfg);
+    if (r.events[at]) state.cursor = r.events[at].end;  // 锁定查看时刻到该技能之后
+    save(); render();
   }
   function remove(i) {
     if (i < 0 || i >= state.seq.length) return;
@@ -752,7 +774,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
     if (state.sel >= state.seq.length) state.sel = state.seq.length - 1;
     save(); render();
   }
-  function setSeq(a) { state.seq = a; state.sel = -1; save(); render(); }
+  function setSeq(a) { state.seq = a; state.sel = -1; state.cursor = null; save(); render(); }
   // 基础：烈日斩 + 赤日轮×3 → 满日 → 净世；银月斩 + 幽月轮×3 → 满月 → 净世
   var DEMO1 = ['lirizhan', 'chirilun', 'chirilun', 'chirilun', 'jingshi',
     'yinyuezhan', 'youyuelun', 'youyuelun', 'youyuelun', 'jingshi'];
@@ -780,7 +802,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
       r.onload = function () {
         try {
           var o = JSON.parse(r.result);
-          if (o.seq) { state.seq = o.seq; if (o.cfg) for (var k in o.cfg) if (k in D) state.cfg[k] = o.cfg[k]; syncCfg(); }
+          if (o.seq) { state.seq = o.seq; applySavedCfg(o.cfg); syncCfg(); }
         } catch (e) { alert('导入失败：不是合法的 JSON'); }
         save(); render();
       };
@@ -795,11 +817,111 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
     }
   });
   $('zoom').oninput = function () { state.pps = +this.value; save(); render(); };
+  $('cursor').oninput = function () { state.cursor = +this.value; save(); render(); };
+  $('palette').addEventListener('click', function (e) {
+    var b = e.target.closest('.pk'); if (b) insert(b.getAttribute('data-k'));
+  });
+
+  /* ---------- 技能面板（实时 CD/充能状态） ---------- */
+  var CHARGE_DEF = { lirizhan: 'cdDual', yinyuezhan: 'cdDual', shengsijie: 'cdSSJ', anchenmisan: 'cdAC' };
+  var CD_DEF = { guangmingxiang: 'cdGM', quyeduanchou: 'cdQY' };
+  var MAX_DEF = { lirizhan: 'maxDual', yinyuezhan: 'maxDual', shengsijie: 'maxSSJ', anchenmisan: 'maxAC' };
+
+  function chargeStatusAt(key, T, r) {
+    var cd = state.cfg[CHARGE_DEF[key]], max = state.cfg[MAX_DEF[key]];
+    var uses = [];
+    r.events.forEach(function (ev) { if (ev.skill === key && !ev.illegal && ev.start <= T + 1e-9) uses.push(ev.start); });
+    uses.sort(function (a, b) { return a - b; });
+    var n = max, next = Infinity;
+    for (var i = 0; i < uses.length; i++) {
+      var u = uses[i];
+      while (next !== Infinity && next <= u + 1e-9 && n < max) { n++; next = (n >= max) ? Infinity : next + cd; }
+      if (n >= max) next = u + cd;
+      n--;
+    }
+    while (next !== Infinity && next <= T + 1e-9 && n < max) { n++; next = (n >= max) ? Infinity : next + cd; }
+    var toNext = (n < max) ? Math.max(0, next - T) : 0;
+    return { n: n, max: max, toNext: toNext, ready: n > 0 };
+  }
+  function cdStatusAt(key, T, r) {
+    var ready = -Infinity;
+    r.events.forEach(function (ev) {
+      if (ev.skill === key && !ev.illegal && ev.cdReady != null && ev.start <= T + 1e-9) ready = Math.max(ready, ev.cdReady);
+    });
+    var remain = ready - T;
+    return { remain: remain <= 1e-9 ? 0 : remain, ready: remain <= 1e-9 };
+  }
+  function resAt(T, r) {
+    var tr = r.trace, p = tr[0];
+    for (var i = 0; i < tr.length; i++) { if (tr[i].t <= T + 1e-9) p = tr[i]; else break; }
+    return p;
+  }
+  function skillStatus(key, T, r) {
+    if (key === 'chirilun' || key === 'youyuelun') return { cls: 'ok', main: '就绪', sub: '' };
+    if (key === 'jingshi') {
+      var rc = resAt(T, r);
+      if (rc.day >= 100) return { cls: 'ok', main: '满日 ✓' };
+      if (rc.moon >= 100) return { cls: 'ok', main: '满月 ✓' };
+      return { cls: 'no', main: '需满灵' };
+    }
+    if (CHARGE_DEF[key]) {
+      var cs = chargeStatusAt(key, T, r);
+      if (key === 'shengsijie') {
+        var rc2 = resAt(T, r), hasRes = rc2.day >= 100 || rc2.moon >= 100, main = '充能 ' + cs.n + '/' + cs.max;
+        if (!cs.ready) return { cls: 'wait', main: main, sub: '+ ' + cs.toNext.toFixed(1) + 's' };
+        if (!hasRes) return { cls: 'no', main: main, sub: '需满灵' };
+        return { cls: 'ok', main: main, sub: '满' + (rc2.day >= 100 ? '日' : '月') };
+      }
+      if (cs.ready) return { cls: 'ok', main: '充能 ' + cs.n + '/' + cs.max, sub: cs.n < cs.max ? ('+ ' + cs.toNext.toFixed(1) + 's') : '就绪' };
+      return { cls: 'wait', main: '充能 ' + cs.n + '/' + cs.max, sub: '+ ' + cs.toNext.toFixed(1) + 's' };
+    }
+    if (CD_DEF[key]) {
+      var cd = cdStatusAt(key, T, r);
+      if (cd.ready) return { cls: 'ok', main: '就绪' };
+      return { cls: 'wait', main: 'CD ' + cd.remain.toFixed(1) + 's' };
+    }
+    return { cls: 'ok', main: '就绪' };
+  }
+  // 技能名字配色：日系橙 / 月系蓝 / 破·劫按当前满灵动态 / 其余紫
+  var FAMILY = {
+    lirizhan: 'ri', youyuelun: 'yue', chirilun: 'ri', yinyuezhan: 'yue',
+    jingshi: 'duo', shengsijie: 'duo',
+    guangmingxiang: 'other', quyeduanchou: 'other', anchenmisan: 'other'
+  };
+  var C_RI = '#E8892E', C_YUE = '#378ADD', C_OTHER = '#9B59B6';
+  function nameColor(key, T, r) {
+    var f = FAMILY[key];
+    if (f === 'ri') return C_RI;
+    if (f === 'yue') return C_YUE;
+    if (f === 'other') return C_OTHER;
+    if (f === 'duo') {  // 破/劫：满日→橙，满月→蓝，未满足满灵→中性（黑）
+      var rc = resAt(T, r);
+      if (rc.day >= 100) return C_RI;
+      if (rc.moon >= 100) return C_YUE;
+      return '';
+    }
+    return '';
+  }
+  function renderPalette(r, cur) {
+    $('palette').innerHTML = ORDER.map(function (key) {
+      var s = S[key], st = skillStatus(key, cur, r);
+      var nc = nameColor(key, cur, r);
+      return '<button class="pk pk-' + st.cls + '" data-k="' + key + '" title="' + esc(s.note) + '">'
+        + '<span class="pdot" style="background:' + COLORS[s.kind].line + '"></span>'
+        + '<span class="pnm"' + (nc ? ' style="color:' + nc + '"' : '') + '>' + s.name + '</span>'
+        + '<span class="st st-' + st.cls + '">' + st.main + '</span>'
+        + (st.sub ? '<span class="sb">' + st.sub + '</span>' : '')
+        + '</button>';
+    }).join('');
+  }
 
   /* ---------- 渲染 ---------- */
   function render() {
     var r = JX3.simulate(state.seq, state.cfg);
-    renderStats(r); renderTimeline(r); renderWarn(r); renderLog(r);
+    var cur = state.cursor == null ? r.duration : Math.min(state.cursor, r.duration);
+    state.cursor = cur;
+    renderStats(r); renderPalette(r, cur); renderTimeline(r, cur); renderWarn(r); renderLog(r);
+    var cs = $('cursor'); if (cs) { cs.max = r.duration; cs.value = cur; var cv = $('cursorv'); if (cv) cv.textContent = cur.toFixed(2) + 's / 总长 ' + r.duration.toFixed(2) + 's'; }
   }
 
   function renderStats(r) {
@@ -821,7 +943,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
     }).join('');
   }
 
-  function renderTimeline(r) {
+  function renderTimeline(r, cur) {
     var pps = state.pps, W = PAD_L + Math.max(r.duration, 6) * pps + 30;
     // 目标 debuff 行（常驻显示；无数据则画空行）
     var ssjWins = r.debWindows.ssj || [];
@@ -934,10 +1056,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
       });
     });
 
+    // 查看时刻游标
+    var cx = x(cur);
+    g += '<line x1="' + cx + '" y1="6" x2="' + cx + '" y2="' + (TL_H - 2) + '" stroke="#534AB7" stroke-width="1.5" stroke-dasharray="4 3"/>';
+    g += '<rect x="' + (cx - 15) + '" y="0" width="30" height="13" rx="3" fill="#534AB7"/>';
+    g += '<text x="' + cx + '" y="10" font-size="9" fill="#fff" text-anchor="middle">' + cur.toFixed(1) + '</text>';
+
     svg.innerHTML = g;
     svg.onclick = function (e) {
-      var b = e.target.closest('.blk'); if (!b) return;
-      state.sel = +b.getAttribute('data-i'); render();
+      var b = e.target.closest('.blk');
+      if (b) {
+        var i = +b.getAttribute('data-i');
+        state.sel = i; state.cursor = r.events[i].start; save(); render();
+        return;
+      }
+      var rect = svg.getBoundingClientRect();
+      var t = (e.clientX - rect.left - PAD_L) / pps;
+      t = Math.max(0, Math.min(r.duration, t));
+      state.cursor = t; save(); render();
     };
     $('zoomv').textContent = pps + ' px/s';
   }
@@ -973,7 +1109,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
         + '<td class="l">' + esc(ev.notes.join('；')) + '</td></tr>';
     }).join('');
     tb.onclick = function (e) {
-      var tr = e.target.closest('tr'); if (tr) { state.sel = +tr.getAttribute('data-i'); render(); }
+      var tr = e.target.closest('tr'); if (!tr) return;
+      var i = +tr.getAttribute('data-i'); state.sel = i;
+      if (r.events[i]) state.cursor = r.events[i].start;
+      render();
     };
   }
 
