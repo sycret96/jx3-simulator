@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JX3 in the Shell · 明教排轴器</title>
+<style>
+  :root{
+    --bg:#F7F6F3; --card:#FFFFFF; --line:#E3E1DA; --line2:#CFCCC3;
+    --tx:#2C2C2A; --tx2:#5F5E5A; --tx3:#8E8C85;
+    --day:#B8600A; --day-bg:#FAEEDA; --day-line:#EF9F27;
+    --moon:#185FA5; --moon-bg:#E6F1FB; --moon-line:#378ADD;
+    --spend:#A32D2D; --spend-bg:#FCEBEB; --spend-line:#E24B4A;
+    --gm:#534AB7; --gm-bg:#EEEDFE; --gm-line:#7F77DD;
+    --gray:#5F5E5A; --gray-bg:#F1EFE8; --gray-line:#888780;
+    --warn-bg:#FCEBEB; --warn:#A32D2D;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tx);
+    font:13px/1.6 "Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif}
+  h1,h2{margin:0;font-weight:500}
+  .app{max-width:1440px;margin:0 auto;padding:16px}
+  header{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  header h1{font-size:18px}
+  header .sub{color:var(--tx3);font-size:12px}
+  .body{display:flex;gap:14px;align-items:flex-start}
+  .side{width:262px;flex:0 0 262px;display:flex;flex-direction:column;gap:12px}
+  main{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .card h2{font-size:13px;color:var(--tx2);margin-bottom:8px;letter-spacing:.02em}
+  .skills{display:flex;flex-direction:column;gap:5px}
+  .sk{display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;
+    border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 9px;font:inherit;color:var(--tx)}
+  .sk:hover{border-color:var(--line2);background:#FAFAF8}
+  .sk .dot{width:8px;height:8px;border-radius:2px;flex:0 0 8px}
+  .sk .nm{flex:1}
+  .sk .tag{font-size:11px;color:var(--tx3)}
+  .ops{display:flex;flex-wrap:wrap;gap:6px}
+  .btn{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:7px;
+    padding:5px 9px;font:inherit;font-size:12px;color:var(--tx2)}
+  .btn:hover{border-color:var(--line2);background:#FAFAF8}
+  .btn.danger{color:var(--warn)}
+  .cfg{display:grid;grid-template-columns:1fr 60px;gap:5px 8px;align-items:center}
+  .cfg label{font-size:12px;color:var(--tx2)}
+  .cfg input[type=number],.cfg select{width:100%;border:1px solid var(--line);border-radius:6px;
+    padding:3px 4px;font:inherit;font-size:12px;background:#fff;color:var(--tx)}
+  .cfg .full{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2)}
+  .cfg .grp{grid-column:1/-1;font-size:11px;color:var(--tx3);margin-top:4px;
+    border-top:1px solid var(--line);padding-top:6px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+  .stat .k{font-size:11px;color:var(--tx3)}
+  .stat .v{font-size:16px;margin-top:1px}
+  .stat .v small{font-size:11px;color:var(--tx3);font-weight:400}
+  .tlbox{display:flex;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .tllabels{flex:0 0 58px;border-right:1px solid var(--line);background:#FBFAF8;position:relative}
+  .tllabels div{position:absolute;left:0;right:0;padding-left:7px;font-size:11px;color:var(--tx3);
+    display:flex;align-items:center}
+  .tlscroll{flex:1;overflow-x:auto;overflow-y:hidden}
+  .warns{background:var(--warn-bg);border:1px solid #F5C4B3;border-radius:10px;padding:9px 12px;color:var(--warn);font-size:12px}
+  .warns ul{margin:4px 0 0;padding-left:18px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{padding:4px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th{color:var(--tx3);font-weight:400;position:sticky;top:0;background:var(--card)}
+  td.l,th.l{text-align:left}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#FAFAF8}
+  tbody tr.sel{background:#EEEDFE}
+  tbody tr.bad td{color:var(--warn)}
+  .logwrap{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+  .zoom{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--tx3);margin-bottom:6px}
+  .zoom input{flex:0 0 120px}
+  .hint{font-size:11px;color:var(--tx3);margin-top:8px;line-height:1.5}
+  .legend{display:flex;gap:10px;font-size:11px;color:var(--tx3);margin-top:6px;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:4px}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>JX3 in the Shell</h1>
+    <span class="sub">剑网3 明教（齐光流）排轴器 · 单文件离线版</span>
+  </header>
+
+  <div class="body">
+    <aside class="side">
+      <div class="card">
+        <h2>技能（点击插入到选中项之后）</h2>
+        <div class="skills" id="skillBtns"></div>
+      </div>
+
+      <div class="card">
+        <h2>序列</h2>
+        <div class="ops">
+          <button class="btn" id="btnDemo">示例·基础</button>
+          <button class="btn" id="btnDemo2">示例·齐光</button>
+          <button class="btn" id="btnUndo">撤销末尾</button>
+          <button class="btn danger" id="btnDel">删除选中</button>
+          <button class="btn danger" id="btnClear">清空</button>
+          <button class="btn" id="btnExport">导出</button>
+          <button class="btn" id="btnImport">导入</button>
+        </div>
+        <div class="hint">选中技能块或表格行后，新技能插到它后面。按 Delete 删除选中项。</div>
+      </div>
+
+      <div class="card">
+        <h2>配置</h2>
+        <div class="cfg" id="cfg"></div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="stats" id="stats"></div>
+
+      <div class="card" style="padding:10px 12px">
+        <div class="zoom">
+          <span>缩放</span><input type="range" id="zoom" min="8" max="80" value="30">
+          <span id="zoomv"></span>
+        </div>
+        <div class="tlbox">
+          <div class="tllabels" id="tllabels"></div>
+          <div class="tlscroll" id="tlscroll"><svg id="timeline" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--day-line)"></i>日系</span>
+          <span><i style="background:var(--moon-line)"></i>月系</span>
+          <span><i style="background:var(--spend-line)"></i>耗灵技</span>
+          <span><i style="background:var(--gm-line)"></i>光明相</span>
+          <span><i style="background:var(--gray-line)"></i>辅助</span>
+          <span><i style="background:#D3D1C7"></i>等待 CD</span>
+          <span><i style="background:#F7C1C1;border:1px solid var(--spend)"></i>非法施放</span>
+        </div>
+      </div>
+
+      <div id="warnings"></div>
+
+      <div class="logwrap">
+        <table id="log">
+          <thead><tr>
+            <th class="l">#</th><th>开始</th><th class="l">技能</th><th class="l">形态/段</th>
+            <th>伤害</th><th>日灵</th><th>月魂</th><th>珥</th><th>芒</th><th>相</th><th class="l">备注</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script id="engine">
+/* =========================================================================
+   引擎：明教（齐光流）排轴模拟。纯逻辑，不依赖 DOM，可被 node 单独提取测试。
+   数据来源：明教技能情报收集.md（2026-09-08 测试服）
+   完整 9 技能 + 日珥/月芒/光明相体系
+   ========================================================================= */
+var JX3 = (function () {
+  var RES_MAX = 100;
+
+  var SKILLS = {
+    chirilun: {
+      key: 'chirilun', name: '赤日轮', short: '日轮', kind: '日', combo: 3,
+      hits: [
+        { label: '一段', base: 14, fixed: 2129, wd: 1.0, aoe: 1 },
+        { label: '二段', base: 15, fixed: 2129, wd: 1.0, aoe: 3 },
+        { label: '三段', base: 16, fixed: 2655, wd: 1.0, aoe: 6 }
+      ],
+      gain: { res: 'day', amount: 20 },
+      note: '日灵 +20/段，三段连击；受「烈日」+50%'
+    },
+    youyuelun: {
+      key: 'youyuelun', name: '幽月轮', short: '月轮', kind: '月', combo: 3,
+      hits: [
+        { label: '一段', base: 7, fixed: 1636, wd: 1.0, aoe: 1 },
+        { label: '二段', base: 7, fixed: 1636, wd: 1.0, aoe: 1, crit: 0.05 },
+        { label: '三段', base: 7, fixed: 1870, wd: 1.0, aoe: 1, crit: 0.10 }
+      ],
+      gain: { res: 'moon', amount: 20 },
+      note: '月魂 +20/段；二三段自带会心 +5%/+10%'
+    },
+    lirizhan: {
+      key: 'lirizhan', name: '烈日斩', short: '烈', kind: '日', charge: true,
+      hits: [{ label: '', base: 15.5, fixed: 2387, wd: 1.0, aoe: 1 }],
+      gain: { res: 'day', amount: 40 },
+      debuff: { key: 'liri', name: '烈日', dur: 18 },
+      ermang: 'riE',
+      note: '日灵 +40；挂「烈日」18s → 赤日轮 +50%；命中非侠士 +1 日珥'
+    },
+    yinyuezhan: {
+      key: 'yinyuezhan', name: '银月斩', short: '银', kind: '月', charge: true,
+      hits: [{ label: '', base: 9.5, fixed: 1198, wd: 1.0, aoe: 1 }],
+      gain: { res: 'moon', amount: 40 },
+      debuff: { key: 'yinyue', name: '银月', dur: 18 },
+      ermang: 'yueM',
+      note: '月魂 +40；挂「银月」DOT 18s（每 2s 一跳）；命中非侠士 +1 月芒'
+    },
+    jingshi: {
+      key: 'jingshi', name: '净世破魔击', short: '破', kind: '消耗', spend: true,
+      forms: {
+        day: { label: '满日·扇形', hits: [{ base: 9.5, fixed: 3372, wd: 2.0, aoe: 5, splash: 0.5 }] },
+        moon: { label: '满月·突进', hits: [{ base: 7, fixed: 1123, wd: 1.0, aoe: 1, times: 3 }] }
+      },
+      note: '消耗满日=AoE 至多5目标（其余半伤）；满月=突进3连击'
+    },
+    shengsijie: {
+      key: 'shengsijie', name: '生死劫', short: '劫', kind: '消耗', spend: true, charge: true,
+      forms: {
+        day: { label: '满日·眩晕', hits: [{ base: 7.5, fixed: 280, wd: 1.0, aoe: 1 }] },
+        moon: { label: '满月·减疗', hits: [{ base: 7.5, fixed: 280, wd: 1.0, aoe: 1 }] }
+      },
+      note: '耗灵技：伤害极低。秘籍（对非侠士）→ 得日珥/月芒 + 返还异色满灵 + 颜色互换'
+    },
+    guangmingxiang: {
+      key: 'guangmingxiang', name: '光明相', short: '光', kind: '增益', cd: true,
+      hits: [],
+      note: '开启 10s 窗口：下次耗灵招式必会心并立即返还满灵；触发时额外 20-44(+4174)，非侠士 ×3.65'
+    },
+    quyeduanchou: {
+      key: 'quyeduanchou', name: '驱夜断愁', short: '驱', kind: '月', cd: true,
+      hits: [{ label: '', base: 9, fixed: 3398, wd: 2.0, aoe: 1 }],
+      gain: { res: 'auto', amount: 60 },
+      note: '需伪装/潜隐或背后；+60 日灵或月魂；背后 +30%；进伪装重置 CD；珥/芒≥2 层可免方位'
+    },
+    anchenmisan: {
+      key: 'anchenmisan', name: '暗尘弥散', short: '尘', kind: '辅助', charge: true,
+      hits: [],
+      note: '进入「伪装」5s（战斗中）并重置驱夜断愁 CD；无伤害'
+    }
+  };
+
+  var DEFAULT_CFG = {
+    gcd: 1.5,             // 公共调息
+    cdDual: 15, maxDual: 3,   // 烈日斩/银月斩：6s，秘籍 +9s → 15s，3 层
+    cdSSJ: 15, maxSSJ: 2,     // 生死劫：15s，秘籍 2 层
+    cdAC: 40, maxAC: 1,       // 暗尘弥散
+    cdGM: 95,                 // 光明相：1分35s，秘籍 -30s → 65s
+    cdQY: 25,                 // 驱夜断愁
+    stealthDur: 5,            // 伪装持续（战斗中）
+    targets: 1,
+    weaponDamage: 0,
+    dmgBonus: 0,
+    crit: 0,
+    critMult: 1.75,
+    arPen: 0,
+    dotTick: 0,               // 银月 DOT 每跳（情报缺失，实测后填）
+    priority: 'day',          // 耗灵技优先消耗
+    jingshiMoonRefund: true,  // 秘籍：净世消耗满月 +20 月魂
+    zhanbuli: true,           // 净世命中带烈日/银月 → 附加 10-12(+1114)，非侠士 ×1.75
+    pve: true,
+    ermang: true,             // 日珥/月芒体系
+    ssjSecret: true,          // 生死劫秘籍（珥/芒 + 异色返灵 + 颜色互换）
+    gmAutoCrit: false,        // 自动转化的光明相是否必会心（情报：生效时不再必会心）
+    quyeBackstab: true,       // 驱夜断愁按背后计算 +30%
+    quyeRequireStealth: false,// 驱夜断愁必须处于伪装/潜隐
+    quyeRes: 'auto'           // 驱夜断愁资源去向：auto / day / moon
+  };
+
+  function hitDamage(sk, hit, start, cfg, db, forceCrit, extraMult) {
+    var targets = Math.max(1, Math.min(cfg.targets, hit.aoe || 1));
+    var base = (hit.base || 0) + (hit.fixed || 0) + (hit.wd || 0) * cfg.weaponDamage;
+    var mult = 1;
+    if (sk.key === 'chirilun' && db.liri > start) mult *= 1.5;      // 烈日 debuff
+    if (extraMult) mult *= extraMult;                                // 背后 +30% 等
+    var crit = forceCrit ? 1 : Math.max(0, Math.min(1, cfg.crit + (hit.crit || 0)));
+    var critMul = 1 + crit * (cfg.critMult - 1);
+    var one = base * mult * critMul * (1 + cfg.dmgBonus) * (1 + cfg.arPen);
+    var times = hit.times || 1;
+    var splash = hit.splash === undefined ? 1 : hit.splash;
+    return one * times * (1 + (targets - 1) * splash);
+  }
+
+  function simulate(seq, cfgIn) {
+    var cfg = {}, k;
+    for (k in DEFAULT_CFG) cfg[k] = DEFAULT_CFG[k];
+    for (k in (cfgIn || {})) cfg[k] = cfgIn[k];
+
+    var gcd = cfg.gcd;
+    var day = 0, moon = 0;
+    var riE = 0, yueM = 0, gmCharges = 0, gmWindowUntil = -1e9, stealthUntil = -1e9;
+
+    var chargeDef = {
+      lirizhan: { cd: cfg.cdDual, max: cfg.maxDual },
+      yinyuezhan: { cd: cfg.cdDual, max: cfg.maxDual },
+      shengsijie: { cd: cfg.cdSSJ, max: cfg.maxSSJ },
+      anchenmisan: { cd: cfg.cdAC, max: cfg.maxAC }
+    };
+    var cdDef = { guangmingxiang: cfg.cdGM, quyeduanchou: cfg.cdQY };
+    var charges = {}, cdUntil = {};
+    for (k in chargeDef) charges[k] = { n: chargeDef[k].max, next: Infinity };
+    for (k in cdDef) cdUntil[k] = -1e9;
+
+    var db = { liri: -1e9, yinyue: -1e9 };
+    var dotWindows = [], gmWindows = [], stealthWindows = [];
+    var debWindows = { liri: [], yinyue: [] };
+    var comboSkill = null, comboIdx = 0;
+    var t = 0, total = 0, waitTotal = 0, illegalCount = 0;
+    var overflow = { day: 0, moon: 0 }, blocked = { day: 0, moon: 0 };
+    var gmTriggers = { active: 0, auto: 0 }, quyeResets = 0, merges = 0;
+    var bySkill = {};
+    var events = [], trace = [{ t: 0, day: 0, moon: 0, riE: 0, yueM: 0, gm: 0 }];
+
+    function addRes(res, amount) {
+      // 核心规则：一种能量满了之后，另一种无法继续获得，直到消耗掉满能量状态
+      if ((res === 'day' && moon >= RES_MAX) || (res === 'moon' && day >= RES_MAX)) {
+        blocked[res] += amount; return 0;
+      }
+      var cur = res === 'day' ? day : moon;
+      var nv = Math.min(RES_MAX, cur + amount);
+      var got = nv - cur;
+      overflow[res] += amount - got;
+      if (res === 'day') day = nv; else moon = nv;
+      return got;
+    }
+    function refill(key, T) {
+      var c = charges[key], m = chargeDef[key].max, cd = chargeDef[key].cd;
+      while (c.next !== Infinity && c.next <= T + 1e-9 && c.n < m) {
+        c.n++; c.next = c.n >= m ? Infinity : c.next + cd;
+      }
+    }
+    function useCharge(key, t0) {
+      var c = charges[key], m = chargeDef[key].max, cd = chargeDef[key].cd;
+      if (c.n >= m) c.next = t0 + cd;
+      c.n--;
+    }
+    function pushDeb(key, from) {
+      var end = from + 18, arr = debWindows[key];
+      if (arr.length && arr[arr.length - 1].end > from) arr[arr.length - 1].end = from;
+      arr.push({ start: from, end: end });
+      db[key] = end;
+    }
+    function gmBlocked(start) { return gmCharges > 0 || gmWindowUntil > start; }
+    function checkMerge(start, ev) {
+      if (riE > 0 && yueM > 0) {
+        var n = Math.min(riE, yueM);
+        riE -= n; yueM -= n; gmCharges += n; merges += n;
+        ev.notes.push('日珥×' + n + ' + 月芒×' + n + ' → 光明相×' + n);
+      }
+    }
+
+    for (var i = 0; i < seq.length; i++) {
+      var sk = SKILLS[seq[i] && seq[i].skill];
+      if (!sk) continue;
+      var ev = {
+        i: i, skill: sk.key, name: sk.name, short: sk.short, kind: sk.kind,
+        seg: null, form: null, illegal: false, notes: [], forceCrit: false,
+        gm: null, damage: 0, wait: 0, start: 0, end: 0,
+        day: 0, moon: 0, riE: 0, yueM: 0, gmN: 0, gain: null
+      };
+
+      // 连击段判定
+      if (sk.combo) {
+        if (comboSkill === sk.key) comboIdx = (comboIdx + 1) % sk.combo;
+        else { comboIdx = 0; comboSkill = sk.key; }
+        ev.seg = comboIdx;
+      } else { comboSkill = null; comboIdx = 0; }
+
+      // 就绪时间
+      var start = t;
+      if (sk.charge) {
+        refill(sk.key, t);
+        if (charges[sk.key].n === 0) start = Math.max(start, charges[sk.key].next);
+        refill(sk.key, start);
+      }
+      if (sk.cd) start = Math.max(start, cdUntil[sk.key]);
+      ev.wait = start - t;
+      waitTotal += ev.wait;
+
+      var hits = sk.combo ? [sk.hits[ev.seg]] : (sk.hits || []);
+      var legal = true;
+
+      // 驱夜断愁：方位 / 伪装条件
+      var qyStealth = stealthUntil > start;
+      var qyIgnore = cfg.ermang && (riE >= 2 || yueM >= 2);
+      if (sk.key === 'quyeduanchou') {
+        if (qyStealth) { cdUntil.quyeduanchou = -1e9; quyeResets++; ev.notes.push('伪装中：重置 CD'); }
+        else if (qyIgnore) ev.notes.push('珥/芒 ≥2 层：无视方位');
+        else if (cfg.quyeRequireStealth) { legal = false; ev.notes.push('需要「伪装」或「潜隐」状态'); }
+        else if (cfg.quyeBackstab) ev.notes.push('背后 +30%');
+      }
+
+      // 耗灵技：净世破魔击 / 生死劫
+      if (sk.spend) {
+        var form = null;
+        if (cfg.priority === 'day') {
+          if (day >= RES_MAX) form = 'day'; else if (moon >= RES_MAX) form = 'moon';
+        } else {
+          if (moon >= RES_MAX) form = 'moon'; else if (day >= RES_MAX) form = 'day';
+        }
+        if (!form) {
+          legal = false;
+          ev.notes.push('需要满日或满月（当前 日灵' + day + ' / 月魂' + moon + '）');
+        } else {
+          ev.form = form;
+          ev.formLabel = sk.forms[form].label;
+          hits = sk.forms[form].hits;
+
+          // 珥/芒 ≥2 层：消耗对应满灵重置驱夜断愁
+          if (cfg.ermang && ((form === 'day' && riE >= 2) || (form === 'moon' && yueM >= 2))) {
+            cdUntil.quyeduanchou = -1e9; quyeResets++;
+            ev.notes.push('珥/芒 ≥2：重置驱夜断愁');
+          }
+          if (form === 'day') day = 0; else moon = 0;
+
+          // 净世秘籍：消耗满月 → +20 月魂
+          if (sk.key === 'jingshi' && form === 'moon' && cfg.jingshiMoonRefund) {
+            if (addRes('moon', 20) > 0) ev.notes.push('秘籍 +20 月魂');
+          }
+
+          // 生死劫秘籍：得珥/芒 + 返还异色满灵 + 颜色互换
+          if (sk.key === 'shengsijie' && cfg.ssjSecret && cfg.pve) {
+            var other = form === 'day' ? 'moon' : 'day';
+            if (other === 'day') day = RES_MAX; else moon = RES_MAX;   // 返还异色满灵
+            ev.notes.push('返还满' + (other === 'day' ? '日' : '月'));
+            if (gmBlocked(start)) ev.notes.push('光明相期间未获得 buff');
+            else { if (form === 'day') riE++; else yueM++; }
+            var tmp = riE; riE = yueM; yueM = tmp;                     // 颜色互换
+            ev.notes.push('珥/芒颜色互换');
+            checkMerge(start, ev);
+          }
+
+          // 光明相
+          var gmMode = null;
+          if (gmWindowUntil > start) { gmMode = 'active'; gmWindowUntil = -1e9; }
+          else if (gmCharges > 0) { gmMode = 'auto'; gmCharges--; }
+          if (gmMode) {
+            ev.gm = gmMode;
+            if (gmMode === 'active') gmTriggers.active++; else gmTriggers.auto++;
+            if (form === 'day') day = RES_MAX; else moon = RES_MAX;    // 立即返还满灵
+            ev.notes.push('光明相·' + (gmMode === 'active' ? '主动' : '自动') + '：返还满' + (form === 'day' ? '日' : '月'));
+            if (gmMode === 'active' || cfg.gmAutoCrit) { ev.forceCrit = true; ev.notes.push('必会心'); }
+            if (gmMode === 'active') {
+              var cmG = 1 + Math.min(1, cfg.crit) * (cfg.critMult - 1);
+              ev.damage += (32 + 4174) * (cfg.pve ? 3.65 : 1) * cmG * (1 + cfg.dmgBonus) * (1 + cfg.arPen);
+              ev.notes.push('光明相额外伤害');
+            }
+          }
+        }
+      }
+
+      if (!legal) { ev.illegal = true; illegalCount++; hits = []; }
+
+      // 伤害
+      if (legal) {
+        var extraMult = 1;
+        if (sk.key === 'quyeduanchou' && cfg.quyeBackstab && !qyStealth) extraMult = 1.3;
+        for (var h = 0; h < hits.length; h++) ev.damage += hitDamage(sk, hits[h], start, cfg, db, ev.forceCrit, extraMult);
+        if (cfg.zhanbuli && sk.key === 'jingshi' && (db.liri > start || db.yinyue > start)) {
+          var cm = 1 + (ev.forceCrit ? 1 : Math.min(1, cfg.crit)) * (cfg.critMult - 1);
+          var per = (11 + 1114) * cm * (1 + cfg.dmgBonus) * (1 + cfg.arPen) * (cfg.pve ? 1.75 : 1);
+          var tg = Math.max(1, Math.min(cfg.targets, ev.form === 'day' ? 5 : 1));
+          ev.damage += per * tg;
+          ev.notes.push('斩不利附加 ×' + tg);
+        }
+      }
+
+      // debuff / 状态
+      if (legal) {
+        if (sk.debuff) pushDeb(sk.debuff.key, start);
+        if (sk.key === 'yinyuezhan' && cfg.dotTick > 0) {
+          if (dotWindows.length && dotWindows[dotWindows.length - 1].end > start)
+            dotWindows[dotWindows.length - 1].end = start;
+          dotWindows.push({ start: start, end: start + 18 });
+        }
+        if (sk.key === 'guangmingxiang') {
+          gmWindowUntil = start + 10;
+          gmWindows.push({ start: start, end: gmWindowUntil });
+          ev.notes.push('10s 窗口开启');
+        }
+        if (sk.key === 'anchenmisan') {
+          stealthUntil = start + cfg.stealthDur;
+          stealthWindows.push({ start: start, end: stealthUntil });
+          cdUntil.quyeduanchou = -1e9; quyeResets++;
+          ev.notes.push('伪装 ' + cfg.stealthDur + 's，重置驱夜断愁');
+        }
+        // 日珥 / 月芒（烈日斩、银月斩 命中非侠士）
+        if (cfg.ermang && sk.ermang && cfg.pve) {
+          if (gmBlocked(start)) ev.notes.push('光明相期间无法获得' + (sk.ermang === 'riE' ? '日珥' : '月芒'));
+          else {
+            if (sk.ermang === 'riE') riE++; else yueM++;
+            checkMerge(start, ev);
+          }
+        }
+        // 资源生成
+        if (sk.gain) {
+          var res = sk.gain.res;
+          if (res === 'auto') res = day <= moon ? 'day' : 'moon';   // 自动：补较低的一边
+          var resName = res === 'day' ? '日灵' : '月魂';
+          var got = addRes(res, sk.gain.amount);
+          ev.gain = { res: res, got: got, want: sk.gain.amount };
+          if (got === 0) {
+            // 区分两种「加不进去」：另一种已满导致锁死 / 自身本来就是满的
+            var selfFull = (res === 'day' ? day : moon) >= RES_MAX;
+            ev.notes.push(selfFull
+              ? resName + '已满，' + sk.gain.amount + ' 点浪费'
+              : resName + '被锁死（另一种已满）');
+          } else if (got < sk.gain.amount) {
+            ev.notes.push(resName + '溢出 ' + (sk.gain.amount - got));
+          }
+        }
+        if (sk.charge) useCharge(sk.key, start);
+        if (sk.cd) cdUntil[sk.key] = start + cdDef[sk.key];
+      }
+
+      ev.start = start; ev.end = start + gcd;
+      ev.day = day; ev.moon = moon; ev.riE = riE; ev.yueM = yueM; ev.gmN = gmCharges;
+      if (ev.wait > 1e-6) ev.notes.unshift('等待 ' + ev.wait.toFixed(2) + 's');
+      if (ev.seg !== null) ev.segLabel = sk.hits[ev.seg].label;
+
+      total += ev.damage;
+      bySkill[sk.key] = bySkill[sk.key] || { n: 0, dmg: 0 };
+      bySkill[sk.key].n++; bySkill[sk.key].dmg += ev.damage;
+
+      events.push(ev);
+      trace.push({ t: ev.end, day: day, moon: moon, riE: riE, yueM: yueM, gm: gmCharges });
+      t = ev.end;
+    }
+
+    // DOT 结算
+    var dotDmg = 0;
+    if (cfg.dotTick > 0) {
+      for (var w = 0; w < dotWindows.length; w++) {
+        var wt = dotWindows[w];
+        var ticks = Math.floor((Math.min(wt.end, t) - wt.start) / 2);
+        if (ticks > 0) dotDmg += ticks * cfg.dotTick * (1 + cfg.dmgBonus) * (1 + cfg.arPen);
+      }
+    }
+    total += dotDmg;
+
+    var list = [];
+    for (var key in bySkill) {
+      list.push({
+        key: key, name: SKILLS[key].name, kind: SKILLS[key].kind,
+        n: bySkill[key].n, dmg: bySkill[key].dmg,
+        pct: total > 0 ? bySkill[key].dmg / total * 100 : 0
+      });
+    }
+    list.sort(function (a, b) { return b.dmg - a.dmg; });
+
+    var jd = 0, jm = 0;
+    for (var e = 0; e < events.length; e++) {
+      if (events[e].skill === 'jingshi' && events[e].form === 'day') jd++;
+      if (events[e].skill === 'jingshi' && events[e].form === 'moon') jm++;
+    }
+
+    return {
+      events: events, trace: trace, duration: t, total: total, dotDmg: dotDmg,
+      dps: t > 0 ? total / t : 0,
+      bySkill: list, overflow: overflow, blocked: blocked, waitTotal: waitTotal,
+      illegalCount: illegalCount, jingshi: { day: jd, moon: jm },
+      debWindows: debWindows, dotWindows: dotWindows,
+      gmWindows: gmWindows, stealthWindows: stealthWindows,
+      ermang: { riE: riE, yueM: yueM, gm: gmCharges },
+      gmTriggers: gmTriggers, quyeResets: quyeResets, merges: merges
+    };
+  }
+
+  return { SKILLS: SKILLS, DEFAULT_CFG: DEFAULT_CFG, RES_MAX: RES_MAX, simulate: simulate };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = JX3;
+</script>
+
+<script>
+/* ============================== 界面 ============================== */
+(function () {
+  var S = JX3.SKILLS, D = JX3.DEFAULT_CFG;
+  var ROWS = [
+    { key: 'skill', label: '技能', y: 8, h: 34 },
+    { key: 'day', label: '日灵', y: 48, h: 52 },
+    { key: 'moon', label: '月魂', y: 104, h: 52 },
+    { key: 'riE', label: '日珥', y: 162, h: 18 },
+    { key: 'yueM', label: '月芒', y: 184, h: 18 },
+    { key: 'gm', label: '光明相', y: 206, h: 18 },
+    { key: 'stealth', label: '伪装', y: 228, h: 18 }
+  ];
+  var TL_H = 258, AXIS_Y = 252, PAD_L = 6;
+  var COLORS = {
+    '日': { bg: '#FAEEDA', line: '#EF9F27', tx: '#854F0B' },
+    '月': { bg: '#E6F1FB', line: '#378ADD', tx: '#185FA5' },
+    '消耗': { bg: '#FCEBEB', line: '#E24B4A', tx: '#A32D2D' },
+    '增益': { bg: '#EEEDFE', line: '#7F77DD', tx: '#3C3489' },
+    '辅助': { bg: '#F1EFE8', line: '#888780', tx: '#444441' }
+  };
+
+  var state = { seq: [], cfg: {}, sel: -1, pps: 30 };
+  for (var k in D) state.cfg[k] = D[k];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  var fmt = function (n) { return Math.round(n).toLocaleString('en-US'); };
+
+  function save() {
+    try { localStorage.setItem('jx3shell', JSON.stringify({ seq: state.seq, cfg: state.cfg, pps: state.pps })); } catch (e) { }
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem('jx3shell'); if (!raw) return false;
+      var o = JSON.parse(raw);
+      if (o && o.seq) {
+        state.seq = o.seq;
+        if (o.cfg) for (var k in o.cfg) if (k in D) state.cfg[k] = o.cfg[k];
+        if (o.pps) state.pps = o.pps;
+        return true;
+      }
+    } catch (e) { }
+    return false;
+  }
+
+  /* ---------- 技能按钮 ---------- */
+  var ORDER = ['lirizhan', 'yinyuezhan', 'chirilun', 'youyuelun', 'jingshi',
+    'shengsijie', 'guangmingxiang', 'quyeduanchou', 'anchenmisan'];
+  var TAGS = { chirilun: '3段', youyuelun: '3段', lirizhan: '充能', yinyuezhan: '充能',
+    jingshi: '耗灵', shengsijie: '耗灵', guangmingxiang: 'CD', quyeduanchou: 'CD', anchenmisan: '隐身' };
+  (function () {
+    $('skillBtns').innerHTML = ORDER.map(function (key) {
+      var s = S[key];
+      return '<button class="sk" data-k="' + key + '" title="' + esc(s.note) + '">'
+        + '<span class="dot" style="background:' + COLORS[s.kind].line + '"></span>'
+        + '<span class="nm">' + s.name + '</span><span class="tag">' + TAGS[key] + '</span></button>';
+    }).join('');
+    $('skillBtns').addEventListener('click', function (e) {
+      var b = e.target.closest('.sk'); if (b) insert(b.getAttribute('data-k'));
+    });
+  })();
+
+  /* ---------- 配置 ---------- */
+  var CFG_FIELDS = [
+    { k: 'gcd', label: '公共调息 GCD (s)', step: 0.05 },
+    { k: 'cdDual', label: '烈日/银月 调息 (s)', step: 0.5 },
+    { k: 'maxDual', label: '烈日/银月 层数', step: 1 },
+    { k: 'cdSSJ', label: '生死劫 调息 (s)', step: 0.5 },
+    { k: 'maxSSJ', label: '生死劫 层数', step: 1 },
+    { k: 'cdAC', label: '暗尘弥散 调息 (s)', step: 1 },
+    { k: 'cdGM', label: '光明相 调息 (s)', step: 1 },
+    { k: 'cdQY', label: '驱夜断愁 调息 (s)', step: 1 },
+    { k: 'stealthDur', label: '伪装持续 (s)', step: 1 },
+    { k: 'targets', label: '目标数', step: 1 },
+    { k: 'weaponDamage', label: '武器伤害', step: 10 },
+    { k: 'dmgBonus', label: '全局增伤 (%)', step: 1, pct: true },
+    { k: 'crit', label: '会心率 (%)', step: 1, max: 100, pct: true },
+    { k: 'critMult', label: '会心效果 (倍)', step: 0.05 },
+    { k: 'arPen', label: '无双/破防 增伤 (%)', step: 1, pct: true },
+    { k: 'dotTick', label: '银月 DOT 每跳', step: 50 }
+  ];
+  var CHECKS = [
+    { k: 'pve', label: '目标为非侠士（PVE）' },
+    { k: 'ermang', label: '日珥/月芒体系' },
+    { k: 'ssjSecret', label: '生死劫秘籍（珥/芒+返灵+互换）' },
+    { k: 'gmAutoCrit', label: '自动光明相也必会心' },
+    { k: 'jingshiMoonRefund', label: '净世秘籍：满月 +20 月魂' },
+    { k: 'zhanbuli', label: '净世·斩不利附加伤害' },
+    { k: 'quyeBackstab', label: '驱夜断愁按背后 +30%' },
+    { k: 'quyeRequireStealth', label: '驱夜断愁必须处于伪装' }
+  ];
+  (function () {
+    var html = '';
+    CFG_FIELDS.forEach(function (f) {
+      var v = f.pct ? state.cfg[f.k] * 100 : state.cfg[f.k];
+      html += '<label for="c_' + f.k + '">' + f.label + '</label>'
+        + '<input type="number" id="c_' + f.k + '" data-k="' + f.k + '" data-pct="' + (f.pct ? 1 : 0) + '"'
+        + ' step="' + f.step + '" min="0"' + (f.max ? ' max="' + f.max + '"' : '') + ' value="' + v + '">';
+    });
+    html += '<label for="c_priority">耗灵技优先消耗</label><select id="c_priority" data-k="priority">'
+      + '<option value="day">日</option><option value="moon">月</option></select>';
+    html += '<label for="c_quyeRes">驱夜资源去向</label><select id="c_quyeRes" data-k="quyeRes">'
+      + '<option value="auto">自动补低的一边</option><option value="day">日灵</option><option value="moon">月魂</option></select>';
+    html += '<div class="grp">齐光流机制（部分规则待实测）</div>';
+    CHECKS.forEach(function (c) {
+      html += '<div class="full"><input type="checkbox" id="k_' + c.k + '"><label for="k_' + c.k + '">' + c.label + '</label></div>';
+    });
+    $('cfg').innerHTML = html;
+    $('cfg').addEventListener('change', function (e) {
+      var el = e.target, k = el.getAttribute('data-k');
+      if (k) {
+        var v = parseFloat(el.value); if (isNaN(v)) v = D[k];
+        state.cfg[k] = el.getAttribute('data-pct') === '1' ? v / 100 : v;
+      }
+      CHECKS.forEach(function (c) { state.cfg[c.k] = $('k_' + c.k).checked; });
+      save(); render();
+    });
+  })();
+  function syncCfg() {
+    CFG_FIELDS.forEach(function (f) {
+      var el = $('c_' + f.k); if (el) el.value = f.pct ? state.cfg[f.k] * 100 : state.cfg[f.k];
+    });
+    $('c_priority').value = state.cfg.priority;
+    $('c_quyeRes').value = state.cfg.quyeRes;
+    CHECKS.forEach(function (c) { $('k_' + c.k).checked = !!state.cfg[c.k]; });
+  }
+
+  /* ---------- 序列 ---------- */
+  function insert(key) {
+    var at = state.sel >= 0 ? state.sel + 1 : state.seq.length;
+    state.seq.splice(at, 0, { skill: key });
+    state.sel = at; save(); render();
+  }
+  function remove(i) {
+    if (i < 0 || i >= state.seq.length) return;
+    state.seq.splice(i, 1);
+    if (state.sel >= state.seq.length) state.sel = state.seq.length - 1;
+    save(); render();
+  }
+  function setSeq(a) { state.seq = a; state.sel = -1; save(); render(); }
+  // 基础：烈日斩 + 赤日轮×3 → 满日 → 净世；银月斩 + 幽月轮×3 → 满月 → 净世
+  var DEMO1 = ['lirizhan', 'chirilun', 'chirilun', 'chirilun', 'jingshi',
+    'yinyuezhan', 'youyuelun', 'youyuelun', 'youyuelun', 'jingshi'];
+  // 齐光：烈日斩(珥) → 净世泄满日 → 银月斩(芒) 合成光明相 → 光明相 + 净世连发 → 生死劫翻转 → 隐身驱夜
+  var DEMO2 = ['lirizhan', 'chirilun', 'chirilun', 'chirilun', 'jingshi',
+    'yinyuezhan', 'youyuelun', 'youyuelun', 'youyuelun',
+    'guangmingxiang', 'jingshi', 'jingshi', 'shengsijie',
+    'anchenmisan', 'quyeduanchou'];
+  $('btnDemo').onclick = function () { setSeq(DEMO1.map(toAct)); };
+  $('btnDemo2').onclick = function () { setSeq(DEMO2.map(toAct)); };
+  function toAct(k) { return { skill: k }; }
+  $('btnUndo').onclick = function () { remove(state.seq.length - 1); };
+  $('btnDel').onclick = function () { remove(state.sel); };
+  $('btnClear').onclick = function () { setSeq([]); };
+  $('btnExport').onclick = function () {
+    var blob = new Blob([JSON.stringify({ seq: state.seq, cfg: state.cfg }, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'jx3-mingjiao-plan.json'; a.click();
+  };
+  $('btnImport').onclick = function () {
+    var inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      var r = new FileReader();
+      r.onload = function () {
+        try {
+          var o = JSON.parse(r.result);
+          if (o.seq) { state.seq = o.seq; if (o.cfg) for (var k in o.cfg) if (k in D) state.cfg[k] = o.cfg[k]; syncCfg(); }
+        } catch (e) { alert('导入失败：不是合法的 JSON'); }
+        save(); render();
+      };
+      r.readAsText(f);
+    };
+    inp.click();
+  };
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && state.sel >= 0) {
+      if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+      e.preventDefault(); remove(state.sel);
+    }
+  });
+  $('zoom').oninput = function () { state.pps = +this.value; save(); render(); };
+
+  /* ---------- 渲染 ---------- */
+  function render() {
+    var r = JX3.simulate(state.seq, state.cfg);
+    renderStats(r); renderTimeline(r); renderWarn(r); renderLog(r);
+  }
+
+  function renderStats(r) {
+    var cards = [
+      { k: '总伤害', v: fmt(r.total) },
+      { k: '时长', v: r.duration.toFixed(2) + '<small> s</small>' },
+      { k: 'DPS', v: fmt(r.dps) },
+      { k: '净世 日/月', v: r.jingshi.day + ' / ' + r.jingshi.moon },
+      { k: '光明相', v: (r.gmTriggers.active + r.gmTriggers.auto) + '<small> 触发</small>' },
+      { k: '珥 / 芒', v: r.ermang.riE + ' / ' + r.ermang.yueM },
+      { k: '日灵溢出', v: r.overflow.day + (r.blocked.day ? '<small> (锁' + r.blocked.day + ')</small>' : '') },
+      { k: '月魂溢出', v: r.overflow.moon + (r.blocked.moon ? '<small> (锁' + r.blocked.moon + ')</small>' : '') },
+      { k: '等待 CD', v: r.waitTotal.toFixed(2) + '<small> s</small>' },
+      { k: '技能数', v: r.events.length + (r.illegalCount ? '<small> · 非法' + r.illegalCount + '</small>' : '') }
+    ];
+    $('stats').innerHTML = cards.map(function (c) {
+      return '<div class="stat"><div class="k">' + c.k + '</div><div class="v">' + c.v + '</div></div>';
+    }).join('');
+  }
+
+  function renderTimeline(r) {
+    var pps = state.pps, W = PAD_L + Math.max(r.duration, 6) * pps + 30;
+    var svg = $('timeline');
+    svg.setAttribute('width', W); svg.setAttribute('height', TL_H);
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + TL_H);
+    var x = function (t) { return PAD_L + t * pps; };
+
+    $('tllabels').style.height = TL_H + 'px';
+    $('tllabels').innerHTML = ROWS.map(function (row) {
+      return '<div style="top:' + row.y + 'px;height:' + row.h + 'px">' + row.label + '</div>';
+    }).join('') + '<div style="top:' + (AXIS_Y - 4) + 'px;height:12px">秒</div>';
+
+    var g = '';
+    ROWS.forEach(function (row) {
+      g += '<rect x="0" y="' + row.y + '" width="' + W + '" height="' + row.h + '" fill="' + (row.key === 'skill' ? '#fff' : '#FCFBF9') + '"/>';
+    });
+    var stepT = pps > 50 ? 1 : pps > 22 ? 2 : 5;
+    for (var tt = 0; tt <= r.duration + 0.001; tt += stepT) {
+      g += '<line x1="' + x(tt) + '" y1="6" x2="' + x(tt) + '" y2="' + (AXIS_Y - 6) + '" stroke="#EDEBE5"/>';
+      g += '<text x="' + x(tt) + '" y="' + AXIS_Y + '" font-size="10" fill="#8E8C85" text-anchor="middle">' + tt.toFixed(0) + '</text>';
+    }
+
+    // 技能行
+    var rowS = ROWS[0], prevEnd = 0;
+    r.events.forEach(function (ev) {
+      if (ev.wait > 1e-6) {
+        var wx = x(prevEnd), ww = Math.max(1, ev.wait * pps - 1);
+        g += '<rect x="' + wx + '" y="' + rowS.y + '" width="' + ww + '" height="' + rowS.h + '" fill="#F1EFE8" rx="3"/>';
+        if (ww > 30) g += '<text x="' + (wx + ww / 2) + '" y="' + (rowS.y + rowS.h / 2) + '" font-size="10" fill="#8E8C85" text-anchor="middle" dominant-baseline="central">等</text>';
+      }
+      var c = COLORS[ev.kind], bx = x(ev.start), bw = Math.max(4, (ev.end - ev.start) * pps - 1.5);
+      var sel = state.sel === ev.i;
+      var fill = ev.illegal ? '#F7C1C1' : c.bg, line = ev.illegal ? '#A32D2D' : c.line;
+      var txt = ev.illegal ? '#A32D2D' : c.tx;
+      var label = ev.short + (ev.seg !== null ? (ev.seg + 1) : '');
+      if (ev.form) label = ev.skill === 'jingshi' ? (ev.form === 'day' ? '破·日' : '破·月') : (ev.form === 'day' ? '劫·日' : '劫·月');
+      if (ev.gm) label += '★';
+      g += '<g class="blk" data-i="' + ev.i + '" style="cursor:pointer">'
+        + '<rect x="' + bx + '" y="' + rowS.y + '" width="' + bw + '" height="' + rowS.h + '" rx="4" fill="' + fill + '" stroke="' + line + '" stroke-width="' + (sel ? 2.5 : 1) + '"/>';
+      if (bw > 20) g += '<text x="' + (bx + bw / 2) + '" y="' + (rowS.y + rowS.h / 2 + 1) + '" font-size="11" fill="' + txt + '" text-anchor="middle" dominant-baseline="central">' + label + '</text>';
+      g += '<title>' + ev.name + (ev.segLabel ? ' ' + ev.segLabel : '') + (ev.formLabel ? ' ' + ev.formLabel : '')
+        + '\n' + ev.start.toFixed(2) + 's → ' + ev.end.toFixed(2) + 's\n伤害 ' + fmt(ev.damage)
+        + '\n日灵 ' + ev.day + ' / 月魂 ' + ev.moon + ' / 珥 ' + ev.riE + ' / 芒 ' + ev.yueM + ' / 相 ' + ev.gmN
+        + (ev.notes.length ? '\n' + ev.notes.join('；') : '') + '</title></g>';
+      prevEnd = ev.end;
+    });
+
+    // 资源阶梯
+    function stepRow(row, key, color, fillc, cap, unit) {
+      var maxV = cap || 0;
+      r.trace.forEach(function (p) { maxV = Math.max(maxV, p[key]); });
+      if (!cap) maxV = Math.max(3, maxV);
+      var yv = function (v) { return row.y + row.h - Math.min(v, maxV) / maxV * row.h; };
+      var d = 'M ' + x(0) + ' ' + yv(0), pv = 0;
+      r.trace.forEach(function (p) {
+        d += ' L ' + x(p.t) + ' ' + yv(pv) + ' L ' + x(p.t) + ' ' + yv(p[key]); pv = p[key];
+      });
+      var last = x(Math.max(r.duration, 1));
+      g += '<path d="' + d + ' L ' + last + ' ' + yv(pv) + ' L ' + last + ' ' + (row.y + row.h) + ' L ' + x(0) + ' ' + (row.y + row.h) + ' Z" fill="' + fillc + '" opacity="0.5"/>';
+      g += '<path d="' + d + ' L ' + last + ' ' + yv(pv) + '" fill="none" stroke="' + color + '" stroke-width="1.5"/>';
+      g += '<line x1="0" y1="' + row.y + '" x2="' + W + '" y2="' + row.y + '" stroke="' + color + '" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.55"/>';
+      g += '<text x="' + (W - 4) + '" y="' + (row.y + row.h - 3) + '" font-size="9" fill="' + color + '" text-anchor="end">上限 ' + (unit ? maxV : '100') + '</text>';
+    }
+    stepRow(ROWS[1], 'day', '#EF9F27', '#FAEEDA', 100);
+    stepRow(ROWS[2], 'moon', '#378ADD', '#E6F1FB', 100);
+    stepRow(ROWS[3], 'riE', '#D85A30', '#FAECE7', 0, 1);
+    stepRow(ROWS[4], 'yueM', '#D4537E', '#FBEAF0', 0, 1);
+    stepRow(ROWS[5], 'gm', '#7F77DD', '#EEEDFE', 0, 1);
+
+    // 覆盖条
+    function bars(row, wins, color) {
+      wins.forEach(function (w) {
+        var wx = x(w.start), ww = Math.max(1, (Math.min(w.end, r.duration) - w.start) * pps);
+        if (ww > 0) g += '<rect x="' + wx + '" y="' + row.y + '" width="' + ww + '" height="' + row.h + '" fill="' + color + '" opacity="0.45" rx="2"/>';
+      });
+    }
+    bars(ROWS[3], [], '#000');
+    bars(ROWS[5], r.gmWindows, '#7F77DD');   // 主动光明相窗口
+    bars(ROWS[6], r.stealthWindows, '#888780');
+    // debuff 行挂在月魂行下方空白处：用日珥/月芒行之上？改为贴在资源行内
+    r.debWindows.liri.forEach(function (w) {
+      var wx = x(w.start), ww = Math.max(1, (Math.min(w.end, r.duration) - w.start) * pps);
+      g += '<rect x="' + wx + '" y="' + (ROWS[1].y + 2) + '" width="' + ww + '" height="4" fill="#EF9F27" opacity="0.8" rx="2"/>';
+    });
+    r.debWindows.yinyue.forEach(function (w) {
+      var wx = x(w.start), ww = Math.max(1, (Math.min(w.end, r.duration) - w.start) * pps);
+      g += '<rect x="' + wx + '" y="' + (ROWS[2].y + 2) + '" width="' + ww + '" height="4" fill="#378ADD" opacity="0.8" rx="2"/>';
+    });
+
+    svg.innerHTML = g;
+    svg.onclick = function (e) {
+      var b = e.target.closest('.blk'); if (!b) return;
+      state.sel = +b.getAttribute('data-i'); render();
+    };
+    $('zoomv').textContent = pps + ' px/s';
+  }
+
+  function renderWarn(r) {
+    var msgs = [];
+    r.events.forEach(function (ev) {
+      if (ev.illegal) msgs.push('第 ' + (ev.i + 1) + ' 个技能「' + ev.name + '」在 ' + ev.start.toFixed(2) + 's：' + ev.notes.join('；'));
+    });
+    if (r.blocked.day > 0) msgs.push('日灵被锁死累计 ' + r.blocked.day + ' 点：月魂已满时无法获得日灵，先消耗满月。');
+    if (r.blocked.moon > 0) msgs.push('月魂被锁死累计 ' + r.blocked.moon + ' 点：日灵已满时无法获得月魂，先消耗满日。');
+    if (r.overflow.day + r.overflow.moon > 0) msgs.push('资源溢出：日灵 ' + r.overflow.day + ' / 月魂 ' + r.overflow.moon + ' 点（攒满后仍在攒，建议提前开耗灵技）。');
+    $('warnings').innerHTML = msgs.length
+      ? '<div class="warns"><b>' + msgs.length + ' 处需要注意</b><ul>' + msgs.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul></div>'
+      : '';
+  }
+
+  function renderLog(r) {
+    var tb = $('log').querySelector('tbody');
+    if (!r.events.length) {
+      tb.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#8E8C85;padding:16px">左侧点技能开始排轴，或先「示例·基础」／「示例·齐光」</td></tr>';
+      return;
+    }
+    tb.innerHTML = r.events.map(function (ev) {
+      return '<tr data-i="' + ev.i + '" class="' + (state.sel === ev.i ? 'sel' : '') + (ev.illegal ? ' bad' : '') + '">'
+        + '<td class="l">' + (ev.i + 1) + '</td>'
+        + '<td>' + ev.start.toFixed(2) + '</td>'
+        + '<td class="l">' + ev.name + (ev.gm ? ' ★' : '') + '</td>'
+        + '<td class="l">' + (ev.segLabel || ev.formLabel || '') + '</td>'
+        + '<td>' + fmt(ev.damage) + '</td>'
+        + '<td>' + ev.day + '</td><td>' + ev.moon + '</td>'
+        + '<td>' + ev.riE + '</td><td>' + ev.yueM + '</td><td>' + ev.gmN + '</td>'
+        + '<td class="l">' + esc(ev.notes.join('；')) + '</td></tr>';
+    }).join('');
+    tb.onclick = function (e) {
+      var tr = e.target.closest('tr'); if (tr) { state.sel = +tr.getAttribute('data-i'); render(); }
+    };
+  }
+
+  /* ---------- 启动 ---------- */
+  if (!load()) { $('btnDemo').onclick(); }
+  else { $('zoom').value = state.pps; syncCfg(); render(); }
+})();
+</script>
+</body>
+</html>
